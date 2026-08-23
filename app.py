@@ -4,9 +4,9 @@ import streamlit.components.v1 as components
 from google import genai
 from google.genai import types
 
-st.set_page_config(page_title="웹소설 스튜디오 Pro", layout="wide")
+st.set_page_config(page_title="웹소설 스튜디오 Pro Max", layout="wide")
 
-# 1. API 키 연동 (Secrets 1순위 -> 수동 입력 2순위)
+# 1. API 키 연동
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 with st.sidebar:
@@ -37,7 +37,7 @@ with st.sidebar:
 data_fields = [
     "custom_story_lore", "worldview", "synopsis", 
     "custom_char_lore", "characters", "plot", "notes",
-    "foreshadowing_list"
+    "foreshadowing_list", "compressed_summaries"
 ]
 for f in data_fields:
     if f not in st.session_state:
@@ -53,7 +53,7 @@ if "current_ep_title" not in st.session_state:
 if "current_ep_content" not in st.session_state:
     st.session_state.current_ep_content = ""
 
-# 3. 사이드바: 📚 회차 서재 & 백업
+# 3. 사이드바: 📚 서재, TXT 내보내기 & 백업
 with st.sidebar:
     st.markdown("---")
     st.subheader("📚 집필된 회차 서재")
@@ -81,6 +81,16 @@ with st.sidebar:
                 if selected_ep in st.session_state.selected_episodes:
                     st.session_state.selected_episodes.remove(selected_ep)
                 st.rerun()
+
+        # 전체 소설 원클릭 TXT 내보내기
+        full_novel_text = "\n\n" + "="*40 + "\n\n"
+        combined_text = full_novel_text.join([f"[{title}]\n\n{content}" for title, content in st.session_state.episode_list.items()])
+        st.download_button(
+            label="📄 전체 소설 통합 TXT 다운로드",
+            data=combined_text,
+            file_name="full_novel_series.txt",
+            mime="text/plain"
+        )
     else:
         st.info("아직 저장된 회차가 없습니다.")
 
@@ -115,7 +125,7 @@ with st.sidebar:
         components.html(
             """
             <script>
-                localStorage.removeItem('novel_studio_backup_v6');
+                localStorage.removeItem('novel_studio_backup_v7');
                 window.parent.location.reload();
             </script>
             """,
@@ -130,7 +140,7 @@ components.html(
         const currentData = {save_payload};
         const hasData = Object.values(currentData).some(v => v !== "" && Object.keys(v).length > 0);
         if (hasData) {{
-            localStorage.setItem('novel_studio_backup_v6', JSON.stringify(currentData));
+            localStorage.setItem('novel_studio_backup_v7', JSON.stringify(currentData));
         }}
     </script>
     """,
@@ -138,7 +148,7 @@ components.html(
 )
 
 # 5. 메인 화면 & API 클라이언트
-st.title("✍️ 웹소설 유니버스 & 스튜디오 Pro")
+st.title("✍️ 웹소설 유니버스 & 스튜디오 Pro Max")
 
 if not api_key:
     st.warning("👈 사이드바에 Gemini API Key를 입력하거나 Secrets 설정을 완료해 주세요.")
@@ -152,7 +162,7 @@ system_prompt_addon = f"""
 - 표현 수위: {rating_level}
 - 문체 스타일: {detail_style}
 - 목표 분량: {target_length}
-- 포함된 작가 설정 및 기작성된 회차의 인물 관계/복선 맥락을 최우선 준수할 것.
+- 포함된 작가 설정, 인물 관계, 복선 맥락을 최우선 준수할 것.
 """
 
 def generate_ai(contents_text):
@@ -168,7 +178,7 @@ def generate_ai(contents_text):
     return res.text
 
 # 프롬프트 조립 함수
-def build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_chars=True, use_synop=True, use_plot=True, use_selected_eps=True, use_foreshadow=True):
+def build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_chars=True, use_synop=True, use_plot=True, use_selected_eps=True, use_foreshadow=True, use_compressed=True):
     ctx = []
     if use_story and st.session_state.custom_story_lore.strip():
         ctx.append(f"[작가 고유 스토리/세계관 설정]\n{st.session_state.custom_story_lore}")
@@ -184,6 +194,8 @@ def build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_ch
         ctx.append(f"[플롯 및 트리트먼트]\n{st.session_state.plot}")
     if use_foreshadow and st.session_state.foreshadowing_list.strip():
         ctx.append(f"[추적 중인 복선 및 떡밥 목록]\n{st.session_state.foreshadowing_list}")
+    if use_compressed and st.session_state.compressed_summaries.strip():
+        ctx.append(f"[전체 회차 3줄 압축 줄거리 요약본]\n{st.session_state.compressed_summaries}")
     
     if use_selected_eps and st.session_state.selected_episodes:
         ep_texts = []
@@ -195,9 +207,9 @@ def build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_ch
             
     return "\n\n".join(ctx)
 
-# 공통 본문 선택기 UI 함수
+# 공통 대상 텍스트 선택기
 def select_target_text(prefix_key):
-    st.markdown("🎯 **분석/변환할 대상 본문 선택**")
+    st.markdown("🎯 **대상 본문 선택**")
     options = ["현재 작업 중인 본문 (5번 탭)"]
     if st.session_state.episode_list:
         options.append("서재에 저장된 회차 선택")
@@ -303,7 +315,7 @@ with tab2:
                     use_story=use_story_for_c, 
                     use_wv=use_wv_for_c, 
                     use_char_lore=use_char_lore_for_c, 
-                    use_chars=False, use_synop=False, use_plot=False, use_selected_eps=False, use_foreshadow=False
+                    use_chars=False, use_synop=False, use_plot=False, use_selected_eps=False, use_foreshadow=False, use_compressed=False
                 )
                 p = f"{ctx}\n\n[추가 요청]: {char_desc}\n위 설정을 기반으로 인물들의 상세 프로필을 작성해줘."
                 st.session_state.characters = generate_ai(p)
@@ -341,7 +353,8 @@ with tab3:
                     use_chars=use_s_chars, 
                     use_synop=False, use_plot=False,
                     use_selected_eps=use_s_eps,
-                    use_foreshadow=True
+                    use_foreshadow=True,
+                    use_compressed=True
                 )
                 p = f"{ctx}\n\n[추가 키워드]: {synop_keyword}\n선택된 설정들과 회차 맥락을 반영하여 메인 시놉시스를 작성해줘."
                 st.session_state.synopsis = generate_ai(p)
@@ -382,7 +395,8 @@ with tab4:
                     use_synop=use_p_syn, 
                     use_plot=False,
                     use_selected_eps=use_p_eps,
-                    use_foreshadow=True
+                    use_foreshadow=True,
+                    use_compressed=True
                 )
                 p = f"{ctx}\n\n[전개 목표]: {plot_goal}\n기존 회차의 결말과 사건을 이어받아 다음 전개 플롯 및 클리프행어를 설계해줘."
                 st.session_state.plot = generate_ai(p)
@@ -395,6 +409,19 @@ with tab4:
 # 탭 5: 본문 집필
 with tab5:
     st.subheader("📖 5. 에피소드 집필 & 서재 보관")
+    
+    # 회차 즉시 로드 선택기
+    if st.session_state.episode_list:
+        c_sel, c_btn = st.columns([3, 1])
+        with c_sel:
+            ep_to_load = st.selectbox("📂 수정할 기존 회차 선택", options=list(st.session_state.episode_list.keys()), key="load_ep_direct")
+        with c_btn:
+            if st.button("📥 회차 불러오기"):
+                st.session_state.current_ep_title = ep_to_load
+                st.session_state.current_ep_content = st.session_state.episode_list[ep_to_load]
+                st.rerun()
+        st.markdown("---")
+
     st.session_state.current_ep_title = st.text_input("집필 회차 제목", value=st.session_state.current_ep_title, placeholder="예: 제2화 - 추적의 시작")
 
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
@@ -427,9 +454,10 @@ with tab5:
                         use_synop=use_e_syn, 
                         use_plot=use_e_plot,
                         use_selected_eps=use_e_eps,
-                        use_foreshadow=True
+                        use_foreshadow=True,
+                        use_compressed=True
                     )
-                    p = f"{ctx}\n\n[이번 회차 집필 요청]: {st.session_state.current_ep_title}\n기작성된 이전 회차의 맥락을 자연스럽게 이어받아 1화 분량의 본문을 완성해줘."
+                    p = f"{ctx}\n\n[이번 회차 집필 요청]: {st.session_state.current_ep_title}\n기작성된 회차 맥락을 이어받아 1화 분량의 본문을 완성해줘."
                     st.session_state.current_ep_content = generate_ai(p)
                     st.session_state.episode_list[st.session_state.current_ep_title] = st.session_state.current_ep_content
                     st.rerun()
@@ -442,15 +470,41 @@ with tab5:
             st.success(f"'{st.session_state.current_ep_title}' 서재 저장 완료!")
             st.rerun()
 
-    st.session_state.current_ep_content = st.text_area("작성된 소설 본문", value=st.session_state.current_ep_content, height=400)
+    st.session_state.current_ep_content = st.text_area("작성된 소설 본문 (직접 편집 가능)", value=st.session_state.current_ep_content, height=400)
+    
+    # 📊 [업그레이드 1] 실시간 글자수 및 분량 분석기
+    text_len_with_space = len(st.session_state.current_ep_content)
+    text_len_without_space = len(st.session_state.current_ep_content.replace(" ", "").replace("\n", ""))
+    read_time_min = round(text_len_with_space / 800, 1) # 성인 평균 분당 약 800자 독서 기준
+    
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("공백 포함 글자수", f"{text_len_with_space:,} 자")
+    m2.metric("공백 제외 글자수", f"{text_len_without_space:,} 자")
+    m3.metric("예상 독서 시간", f"약 {read_time_min} 분")
+    
+    status_color = "🟢 웹소설 1화 적정 규격" if 4000 <= text_len_with_space <= 6000 else ("🟡 분량 보완 필요" if text_len_with_space < 4000 else "🟠 초장문 분량")
+    m4.metric("플랫폼 분량 규격", status_color)
+
+    # 📱 [업그레이드 4] 스마트폰 독자 뷰어 모드 토글
+    with st.expander("📱 스마트폰 독자 뷰어 모드 (실전 리더기 화면)"):
+        st.markdown(
+            f"""
+            <div style="background-color: #121212; color: #E0E0E0; padding: 25px; border-radius: 12px; font-size: 17px; line-height: 2.0; font-family: 'KoPubWorldBatang', serif; max-width: 650px; margin: auto; border: 1px solid #333;">
+                <h3 style="text-align: center; color: #FFF; margin-bottom: 30px;">{st.session_state.current_ep_title}</h3>
+                {st.session_state.current_ep_content.replace(chr(10), '<br>')}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
     st.session_state.notes = st.text_area("💡 작가 메모 / 아이디어 수첩", value=st.session_state.notes, height=120)
 
 # 탭 6: 고급 작가 엔진 도구함
 with tab6:
-    st.subheader("🛠️ 작가 전문 집필 & 분석 도구함")
+    st.subheader("🛠️ 작가 전문 집필 & 분석 도구함 Pro")
     
     # 1. 설정 붕괴 탐지기
-    with st.expander("🔍 1. 설정 오류 & 붕괴 탐지기 (Continuity Guard)", expanded=True):
+    with st.expander("🔍 1. 설정 오류 & 붕괴 탐지기 (Continuity Guard)", expanded=False):
         st.markdown("선택한 본문과 **[원안 설정집 + 이전 회차]**를 비교하여 인물 성격 오류, 모순, 시간대 불일치를 정밀 검증합니다.")
         target_guard_text = select_target_text("guard")
         
@@ -458,16 +512,8 @@ with tab6:
             if target_guard_text.strip():
                 with st.spinner("설정 및 복선 정합성을 검증 중입니다..."):
                     try:
-                        ctx = build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_chars=True, use_synop=True, use_plot=True, use_selected_eps=True, use_foreshadow=True)
-                        p = f"""{ctx}
-                        
-[검증 대상 본문]:
-{target_guard_text}
-
-위 본문이 앞선 설정(인물 말투/외모/능력, 세계관 법칙, 이전 회차 사건)과 충돌하거나 모순되는 점이 있는지 아래 양식으로 정밀 분석해줘:
-1. ⚠️ 발견된 설정 오류 및 모순점 (없다면 없음)
-2. 🎭 인물 개성 및 어투 일관성 점검
-3. 💡 수정 추천 방안"""
+                        ctx = build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_chars=True, use_synop=True, use_plot=True, use_selected_eps=True, use_foreshadow=True, use_compressed=True)
+                        p = f"""{ctx}\n\n[검증 대상 본문]:\n{target_guard_text}\n\n위 본문이 설정과 충돌하거나 모순되는 점을 정밀 분석해줘:\n1. ⚠️ 발견된 설정 오류 및 모순점\n2. 🎭 인물 개성 및 어투 일관성 점검\n3. 💡 수정 추천 방안"""
                         report = generate_ai(p)
                         st.info(report)
                     except Exception as e:
@@ -475,8 +521,59 @@ with tab6:
             else:
                 st.warning("검사할 본문 내용이 없습니다.")
 
-    # 2. 분기형 클리프행어
-    with st.expander("⚡ 2. 3가지 분기형 클리프행어(절단신공) 생성기"):
+    # 2. 📈 [업그레이드 2] 독자 몰입도 & 텐션/페이싱 분석기
+    with st.expander("📈 2. 독자 몰입도 & 텐션 그래프 분석기 (Pacing Analyzer)", expanded=False):
+        st.markdown("선택한 본문의 **사건 전개 속도, 긴장감(텐션), 대화 vs 서술 비중, 독자 이탈 위험 구간**을 평가합니다.")
+        target_pacing_text = select_target_text("pacing")
+        
+        if st.button("📈 텐션 및 페이싱 종합 분석 실행"):
+            if target_pacing_text.strip():
+                with st.spinner("도파민 및 서사 텐션을 분석 중입니다..."):
+                    try:
+                        p = f"""[분석 대상 본문]:\n{target_pacing_text}\n\n위 웹소설 본문의 독자 몰입도와 페이싱을 아래 항목별로 100점 만점 점수와 함께 날카롭게 진단해줘:
+1. ⚡ 사건 전개 속도 (Pacing Score): 템포가 늘어지는 고구마 구간 여부
+2. 🔥 서사적 긴장감 및 도파민 (Tension Score): 위기감 및 궁금증 유발 수준
+3. 💬 대화 대 서술 비율 (Dialogue vs Narrative Balance)
+4. ⚠️ 독자 이탈 위험 지점 및 템포 개선 솔루션"""
+                        pacing_report = generate_ai(p)
+                        st.info(pacing_report)
+                    except Exception as e:
+                        st.error(f"오류: {e}")
+            else:
+                st.warning("분석할 본문이 없습니다.")
+
+    # 3. 💬 [업그레이드 3] 인물별 말투(보이스) 튜너
+    with st.expander("💬 3. 인물별 고유 말투(보이스) 튜너 (Character Voice Tuner)", expanded=False):
+        st.markdown("특정 인물의 대사를 선택하여 **고유한 어조(능청스러움, 차가움, 사투리, 군인 말투 등)**로 일괄 톤 교정합니다.")
+        target_voice_text = select_target_text("voice")
+        target_char_name = st.text_input("교정할 캐릭터 이름", placeholder="예: 추수국")
+        voice_style = st.selectbox("적용할 말투 스타일", [
+            "거칠고 날카로운 하드보일드/베테랑 형사 어조",
+            "능청스럽고 여유 넘치는 건들거리는 어조",
+            "감정을 철저히 억누른 냉철하고 절제된 단답형 어조",
+            "걸쭉한 경상도/전라도 사투리 억양",
+            "고풍스럽고 우아한 귀족/상위 계급 어조"
+        ])
+        if st.button("💬 해당 캐릭터 말투 일괄 튜닝"):
+            if target_voice_text.strip() and target_char_name.strip():
+                with st.spinner("대사 톤을 교정 중입니다..."):
+                    try:
+                        p = f"[본문]:\n{target_voice_text}\n\n[요청]: 위 본문에서 '{target_char_name}'의 모든 대사와 행동 묘사를 '{voice_style}' 스타일로 자연스럽고 매력적으로 교정해줘. 다른 인물의 대사는 건드리지 마."
+                        st.session_state.voice_tuned_res = generate_ai(p)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"오류: {e}")
+            else:
+                st.warning("본문과 캐릭터 이름을 모두 입력해 주세요.")
+                
+        if "voice_tuned_res" in st.session_state and st.session_state.voice_tuned_res:
+            st.text_area("✨ 말투 튜닝 결과", value=st.session_state.voice_tuned_res, height=220)
+            if st.button("📥 이 튜닝 결과를 5번 탭 본문으로 적용"):
+                st.session_state.current_ep_content = st.session_state.voice_tuned_res
+                st.success("5번 탭 본문으로 적용되었습니다!")
+
+    # 4. 분기형 클리프행어
+    with st.expander("⚡ 4. 3가지 분기형 클리프행어(절단신공) 생성기", expanded=False):
         st.markdown("선택한 본문의 결말부에 붙일 수 있는 **3가지 독자 유입용 엔딩 훅**을 생성합니다.")
         target_cliff_text = select_target_text("cliff")
         
@@ -485,15 +582,7 @@ with tab6:
                 with st.spinner("독자 몰입형 엔딩 훅을 계산 중입니다..."):
                     try:
                         ctx = build_context_prompt(use_story=False, use_wv=False, use_char_lore=True, use_chars=True, use_synop=True, use_plot=False, use_selected_eps=False)
-                        p = f"""{ctx}
-                        
-[선택된 본문]:
-{target_cliff_text}
-
-위 본문의 마지막 상황에서 이어질 수 있는 다음 3가지 유형의 '강렬한 클리프행어(절단신공) 결말 문단'을 작성해줘:
-- [A안: 충격/반전형] 숨겨진 비밀이나 새로운 용의자/단서의 급작스러운 등장
-- [B안: 절체절명 위기형] 주인공의 목숨이나 핵심 계획이 위협받는 긴박한 순간 단절
-- [C안: 심리/갈등 격돌형] 인물 간의 관계가 깨지거나 숨겨진 본심이 터져 나오는 순간 단절"""
+                        p = f"""{ctx}\n\n[선택된 본문]:\n{target_cliff_text}\n\n위 본문의 마지막 상황에서 이어질 수 있는 3가지 유형의 '강렬한 클리프행어 결말 문단'을 작성해줘:\n- [A안: 충격/반전형]\n- [B안: 절체절명 위기형]\n- [C안: 심리/갈등 격돌형]"""
                         st.session_state.cliffhangers = generate_ai(p)
                         st.success("엔딩 분기가 생성되었습니다!")
                     except Exception as e:
@@ -504,8 +593,8 @@ with tab6:
         if "cliffhangers" in st.session_state and st.session_state.cliffhangers:
             st.text_area("생성된 엔딩 훅 3종", value=st.session_state.cliffhangers, height=220)
 
-    # 3. 특정 문단 정밀 윤문 도구
-    with st.expander("🎯 3. 문단 정밀 퇴고 및 윤문 도구 (Surgical Rewriter)"):
+    # 5. 특정 문단 정밀 윤문 도구
+    with st.expander("🎯 5. 문단 정밀 퇴고 및 윤문 도구 (Surgical Rewriter)", expanded=False):
         st.markdown("고치고 싶은 특정 문장이나 대화를 선택하거나 붙여넣어 즉시 업그레이드합니다.")
         target_rewrite_text = select_target_text("rewrite")
         rewrite_goal = st.selectbox("윤문 방향", [
@@ -532,10 +621,9 @@ with tab6:
                 st.session_state.current_ep_content = st.session_state.rewritten_result
                 st.success("5번 탭 본문으로 적용되었습니다!")
 
-    # 4. 복선 & 떡밥 트래커
-    with st.expander("🪢 4. 복선(떡밥) & 미회수 단서 트래커"):
-        st.markdown("선택한 회차나 전체 회차에서 뿌려진 떡밥을 추출하고 회수 상태를 관리합니다. 여기에 기록된 내용은 모든 AI 생성의 맥락으로 전달됩니다.")
-        
+    # 6. 복선 & 떡밥 트래커
+    with st.expander("🪢 6. 복선(떡밥) & 미회수 단서 트래커", expanded=False):
+        st.markdown("회차들에서 뿌려진 떡밥을 추출하고 회수 상태를 관리합니다.")
         target_foreshadow_scope = st.radio("떡밥 추출 대상 범위", ["서재의 전체 회차 종합 분석", "선택한 특정 본문만 분석"], horizontal=True)
         target_foreshadow_text = ""
         if target_foreshadow_scope == "서재의 전체 회차 종합 분석":
@@ -558,12 +646,12 @@ with tab6:
         st.session_state.foreshadowing_list = st.text_area(
             "📌 추적 중인 복선 및 떡밥 목록 (수정 가능)", 
             value=st.session_state.foreshadowing_list, 
-            placeholder="예:\n- [미회수] 1화: 피 묻은 회중시계의 원래 주인\n- [미회수] 2화: 황대수가 남긴 암호 쪽지\n- [회수완료] 3화: 정보원의 진짜 정체",
-            height=200
+            placeholder="예:\n- [미회수] 1화: 피 묻은 회중시계의 원래 주인\n- [미회수] 2화: 황대수가 남긴 암호 쪽지",
+            height=180
         )
 
-    # 5. 시점(POV) 전환기
-    with st.expander("🎭 5. 1인칭 주인공 / 관찰자 시점(POV) 전환기"):
+    # 7. 시점(POV) 전환기
+    with st.expander("🎭 7. 1인칭 주인공 / 관찰자 시점(POV) 전환기", expanded=False):
         st.markdown("선택한 본문이나 장면을 다른 인물의 시점(1인칭 나, 3인칭 관찰자, 빌런 시점)으로 다시 씁니다.")
         target_pov_text = select_target_text("pov")
         
@@ -587,7 +675,30 @@ with tab6:
                 st.warning("변환할 본문 내용이 없습니다.")
 
         if "pov_result_text" in st.session_state and st.session_state.pov_result_text:
-            st.text_area("🎭 시점 변환 본문 결과", value=st.session_state.pov_result_text, height=350)
+            st.text_area("🎭 시점 변환 본문 결과", value=st.session_state.pov_result_text, height=250)
             if st.button("📥 이 시점 변환 결과를 5번 탭 본문(현재 작업)으로 가져오기"):
                 st.session_state.current_ep_content = st.session_state.pov_result_text
-                st.success("5번 탭 본문으로 성공적으로 가져왔습니다! 5번 탭에서 확인 후 서재에 저장하세요.")
+                st.success("5번 탭 본문으로 성공적으로 가져왔습니다!")
+
+    # 8. 🧠 [업그레이드 5] 전체 회차 스마트 3줄 압축기
+    with st.expander("🧠 8. 전체 회차 스마트 3줄 압축기 (Long-term Memory Compressor)", expanded=False):
+        st.markdown("회차가 많아질 때 각 화의 핵심 사건을 3줄로 자동 압축하여 AI의 장기 기억 저장소에 보관합니다.")
+        
+        if st.button("🧠 서재 전체 회차 3줄 핵심 요약 압축 실행"):
+            if st.session_state.episode_list:
+                with st.spinner("전체 회차를 핵심 맥락으로 압축 중입니다..."):
+                    try:
+                        ep_combined = "\n\n".join([f"<{k}>\n{v}" for k, v in st.session_state.episode_list.items()])
+                        p = f"[소설 전체 회차 본문]\n{ep_combined}\n\n각 회차별로 다음 3가지 핵심만 1줄씩, 총 3줄로 간결하게 요약 정리해줘:\n- 1) 발생한 핵심 사건\n- 2) 인물 관계 변화\n- 3) 새로 발생/회수된 복선"
+                        st.session_state.compressed_summaries = generate_ai(p)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"오류: {e}")
+            else:
+                st.info("서재에 저장된 회차가 없습니다.")
+                
+        st.session_state.compressed_summaries = st.text_area(
+            "📌 전체 회차 압축 줄거리 (모든 프롬프트에 자동 전달됨)", 
+            value=st.session_state.compressed_summaries, 
+            height=200
+        )
