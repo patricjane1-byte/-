@@ -360,7 +360,7 @@ with col1:
 [후보 2] (인물 갈등 폭발형) :
 [후보 3] (미스터리/돌발 변수형) :
 """
-                res = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+                res = client.models.generate_content(model='gemini-1.5-flash', contents=prompt)
                 cur_data["candidates"] = res.text
 
     if cur_data["candidates"]:
