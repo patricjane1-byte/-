@@ -6,7 +6,7 @@ from google.genai import types
 
 st.set_page_config(page_title="웹소설 스튜디오 Pro", layout="wide")
 
-# 1. API 키 연동
+# 1. API 키 연동 (Secrets 1순위 -> 수동 입력 2순위)
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 with st.sidebar:
@@ -115,7 +115,7 @@ with st.sidebar:
         components.html(
             """
             <script>
-                localStorage.removeItem('novel_studio_backup_v5');
+                localStorage.removeItem('novel_studio_backup_v6');
                 window.parent.location.reload();
             </script>
             """,
@@ -130,7 +130,7 @@ components.html(
         const currentData = {save_payload};
         const hasData = Object.values(currentData).some(v => v !== "" && Object.keys(v).length > 0);
         if (hasData) {{
-            localStorage.setItem('novel_studio_backup_v5', JSON.stringify(currentData));
+            localStorage.setItem('novel_studio_backup_v6', JSON.stringify(currentData));
         }}
     </script>
     """,
@@ -145,7 +145,7 @@ if not api_key:
     st.stop()
 
 client = genai.Client(api_key=api_key)
-MODEL_NAME = "gemini-3.6-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 system_prompt_addon = f"""
 [집필 및 제어 가이드라인]
@@ -195,7 +195,29 @@ def build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_ch
             
     return "\n\n".join(ctx)
 
-# 탭 구성 (기존 5개 + 6번 도구 탭 추가)
+# 공통 본문 선택기 UI 함수
+def select_target_text(prefix_key):
+    st.markdown("🎯 **분석/변환할 대상 본문 선택**")
+    options = ["현재 작업 중인 본문 (5번 탭)"]
+    if st.session_state.episode_list:
+        options.append("서재에 저장된 회차 선택")
+    options.append("텍스트 직접 붙여넣기")
+    
+    src_type = st.radio("대상 선택", options=options, key=f"{prefix_key}_src_type", horizontal=True)
+    
+    target_text = ""
+    if src_type == "현재 작업 중인 본문 (5번 탭)":
+        target_text = st.session_state.current_ep_content
+    elif src_type == "서재에 저장된 회차 선택":
+        ep_keys = list(st.session_state.episode_list.keys())
+        chosen_ep = st.selectbox("회차 선택", options=ep_keys, key=f"{prefix_key}_chosen_ep")
+        target_text = st.session_state.episode_list.get(chosen_ep, "")
+    else:
+        target_text = st.text_area("텍스트 입력", placeholder="분석할 본문이나 특정 장면을 붙여넣으세요.", key=f"{prefix_key}_custom_text", height=120)
+        
+    return target_text
+
+# 탭 구성
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🌍 1. 스토리/세계관 설정", 
     "👥 2. 인물 설정 (원안/확장)", 
@@ -423,94 +445,118 @@ with tab5:
     st.session_state.current_ep_content = st.text_area("작성된 소설 본문", value=st.session_state.current_ep_content, height=400)
     st.session_state.notes = st.text_area("💡 작가 메모 / 아이디어 수첩", value=st.session_state.notes, height=120)
 
-# 탭 6: 고급 작가 엔진 도구함 (신규 추가)
+# 탭 6: 고급 작가 엔진 도구함
 with tab6:
     st.subheader("🛠️ 작가 전문 집필 & 분석 도구함")
     
     # 1. 설정 붕괴 탐지기
     with st.expander("🔍 1. 설정 오류 & 붕괴 탐지기 (Continuity Guard)", expanded=True):
-        st.markdown("현재 본문과 **[원안 설정집 + 이전 회차]**를 비교하여 인물 성격 오류, 모순, 시간대 불일치를 검증합니다.")
-        if st.button("🔍 현재 본문 설정 오류 검사"):
-            with st.spinner("설정 및 복선 정합성을 검증 중입니다..."):
-                try:
-                    ctx = build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_chars=True, use_synop=True, use_plot=True, use_selected_eps=True, use_foreshadow=True)
-                    p = f"""{ctx}
-                    
+        st.markdown("선택한 본문과 **[원안 설정집 + 이전 회차]**를 비교하여 인물 성격 오류, 모순, 시간대 불일치를 정밀 검증합니다.")
+        target_guard_text = select_target_text("guard")
+        
+        if st.button("🔍 선택된 본문 설정 오류 검사"):
+            if target_guard_text.strip():
+                with st.spinner("설정 및 복선 정합성을 검증 중입니다..."):
+                    try:
+                        ctx = build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_chars=True, use_synop=True, use_plot=True, use_selected_eps=True, use_foreshadow=True)
+                        p = f"""{ctx}
+                        
 [검증 대상 본문]:
-{st.session_state.current_ep_content}
+{target_guard_text}
 
 위 본문이 앞선 설정(인물 말투/외모/능력, 세계관 법칙, 이전 회차 사건)과 충돌하거나 모순되는 점이 있는지 아래 양식으로 정밀 분석해줘:
 1. ⚠️ 발견된 설정 오류 및 모순점 (없다면 없음)
 2. 🎭 인물 개성 및 어투 일관성 점검
 3. 💡 수정 추천 방안"""
-                    report = generate_ai(p)
-                    st.info(report)
-                except Exception as e:
-                    st.error(f"검증 오류: {e}")
+                        report = generate_ai(p)
+                        st.info(report)
+                    except Exception as e:
+                        st.error(f"검증 오류: {e}")
+            else:
+                st.warning("검사할 본문 내용이 없습니다.")
 
     # 2. 분기형 클리프행어
     with st.expander("⚡ 2. 3가지 분기형 클리프행어(절단신공) 생성기"):
-        st.markdown("현재 본문의 결말부에 붙일 수 있는 **3가지 독자 유입용 엔딩 훅**을 생성합니다.")
+        st.markdown("선택한 본문의 결말부에 붙일 수 있는 **3가지 독자 유입용 엔딩 훅**을 생성합니다.")
+        target_cliff_text = select_target_text("cliff")
+        
         if st.button("⚡ 엔딩 분기 3종 생성"):
-            with st.spinner("독자 몰입형 엔딩 훅을 계산 중입니다..."):
-                try:
-                    ctx = build_context_prompt(use_story=False, use_wv=False, use_char_lore=True, use_chars=True, use_synop=True, use_plot=False, use_selected_eps=False)
-                    p = f"""{ctx}
-                    
-[현재 본문]:
-{st.session_state.current_ep_content}
+            if target_cliff_text.strip():
+                with st.spinner("독자 몰입형 엔딩 훅을 계산 중입니다..."):
+                    try:
+                        ctx = build_context_prompt(use_story=False, use_wv=False, use_char_lore=True, use_chars=True, use_synop=True, use_plot=False, use_selected_eps=False)
+                        p = f"""{ctx}
+                        
+[선택된 본문]:
+{target_cliff_text}
 
 위 본문의 마지막 상황에서 이어질 수 있는 다음 3가지 유형의 '강렬한 클리프행어(절단신공) 결말 문단'을 작성해줘:
 - [A안: 충격/반전형] 숨겨진 비밀이나 새로운 용의자/단서의 급작스러운 등장
 - [B안: 절체절명 위기형] 주인공의 목숨이나 핵심 계획이 위협받는 긴박한 순간 단절
 - [C안: 심리/갈등 격돌형] 인물 간의 관계가 깨지거나 숨겨진 본심이 터져 나오는 순간 단절"""
-                    st.session_state.cliffhangers = generate_ai(p)
-                    st.success("엔딩 분기가 생성되었습니다!")
-                except Exception as e:
-                    st.error(f"오류: {e}")
-        if "cliffhangers" in st.session_state:
-            st.text_area("생성된 엔딩 훅 3종", value=st.session_state.cliffhangers, height=250)
+                        st.session_state.cliffhangers = generate_ai(p)
+                        st.success("엔딩 분기가 생성되었습니다!")
+                    except Exception as e:
+                        st.error(f"오류: {e}")
+            else:
+                st.warning("본문 내용이 없습니다.")
+                
+        if "cliffhangers" in st.session_state and st.session_state.cliffhangers:
+            st.text_area("생성된 엔딩 훅 3종", value=st.session_state.cliffhangers, height=220)
 
     # 3. 특정 문단 정밀 윤문 도구
     with st.expander("🎯 3. 문단 정밀 퇴고 및 윤문 도구 (Surgical Rewriter)"):
-        st.markdown("고치고 싶은 특정 문장이나 대화만 붙여넣어 즉시 업그레이드합니다.")
-        target_paragraph = st.text_area("수정할 문단/대화 붙여넣기", placeholder="수정하고 싶은 특정 문장을 여기에 넣으세요.")
+        st.markdown("고치고 싶은 특정 문장이나 대화를 선택하거나 붙여넣어 즉시 업그레이드합니다.")
+        target_rewrite_text = select_target_text("rewrite")
         rewrite_goal = st.selectbox("윤문 방향", [
             "대사를 더 날카롭고 매력적인 톤으로 변경",
             "격투/추격 액션의 속도감과 타격감 강화",
             "감각적 묘사(시각/청각/심리) 고밀도 추가",
             "웹소설 가독성에 맞게 짧고 리듬감 있는 문장으로 교체"
         ])
-        if st.button("🎯 해당 문단만 정밀 재작성"):
-            if target_paragraph.strip():
+        if st.button("🎯 해당 문단/본문 정밀 재작성"):
+            if target_rewrite_text.strip():
                 with st.spinner("문단을 다듬는 중입니다..."):
                     try:
-                        p = f"[수정 요청]: {rewrite_goal}\n[원문 문단]:\n{target_paragraph}\n\n위 문단을 요청사항에 맞게 웹소설 프로 작가 수준으로 윤문해줘."
-                        rewritten = generate_ai(p)
-                        st.text_area("✨ 윤문된 결과", value=rewritten, height=180)
+                        p = f"[수정 요청]: {rewrite_goal}\n[원문 문단]:\n{target_rewrite_text}\n\n위 문단을 요청사항에 맞게 웹소설 프로 작가 수준으로 윤문해줘."
+                        st.session_state.rewritten_result = generate_ai(p)
+                        st.rerun()
                     except Exception as e:
                         st.error(f"오류: {e}")
             else:
                 st.warning("수정할 문단을 입력해 주세요.")
+                
+        if "rewritten_result" in st.session_state and st.session_state.rewritten_result:
+            st.text_area("✨ 윤문된 결과", value=st.session_state.rewritten_result, height=200)
+            if st.button("📥 이 윤문 결과를 5번 탭 본문으로 덮어쓰기"):
+                st.session_state.current_ep_content = st.session_state.rewritten_result
+                st.success("5번 탭 본문으로 적용되었습니다!")
 
     # 4. 복선 & 떡밥 트래커
     with st.expander("🪢 4. 복선(떡밥) & 미회수 단서 트래커"):
-        st.markdown("작품 전체에 뿌려진 떡밥을 기록하고 회수 상태를 관리합니다. 여기에 적힌 내용은 모든 AI 생성 시 맥락으로 전달됩니다.")
+        st.markdown("선택한 회차나 전체 회차에서 뿌려진 떡밥을 추출하고 회수 상태를 관리합니다. 여기에 기록된 내용은 모든 AI 생성의 맥락으로 전달됩니다.")
         
-        col_t1, col_t2 = st.columns([1, 1])
-        with col_t1:
-            if st.button("🔍 현재 회차들에서 뿌려진 떡밥 자동 추출"):
-                with st.spinner("회차 본문에서 복선을 수집 중입니다..."):
+        target_foreshadow_scope = st.radio("떡밥 추출 대상 범위", ["서재의 전체 회차 종합 분석", "선택한 특정 본문만 분석"], horizontal=True)
+        target_foreshadow_text = ""
+        if target_foreshadow_scope == "서재의 전체 회차 종합 분석":
+            target_foreshadow_text = "\n\n".join([f"<{k}>\n{v}" for k, v in st.session_state.episode_list.items()])
+        else:
+            target_foreshadow_text = select_target_text("foreshadow")
+            
+        if st.button("🔍 떡밥 및 복선 자동 추출/정리"):
+            if target_foreshadow_text.strip():
+                with st.spinner("본문에서 복선을 수집 및 분석 중입니다..."):
                     try:
-                        ep_all = "\n\n".join([f"<{k}>\n{v}" for k, v in st.session_state.episode_list.items()])
-                        p = f"[전체 회차 본문]\n{ep_all}\n\n위 본문들에 등장한 핵심 단서, 의문의 인물, 미해결 사건 등 작가가 회수해야 할 '복선/떡밥 목록'을 번호 매겨 체계적으로 정리해줘."
+                        p = f"[분석 대상 본문]\n{target_foreshadow_text}\n\n위 본문들에 등장한 핵심 단서, 의문의 인물, 미해결 사건 등 작가가 회수해야 할 '복선/떡밥 목록'을 번호 매겨 체계적으로 정리해줘."
                         st.session_state.foreshadowing_list = generate_ai(p)
                         st.rerun()
                     except Exception as e:
                         st.error(f"오류: {e}")
+            else:
+                st.warning("분석할 본문이 없습니다.")
         
         st.session_state.foreshadowing_list = st.text_area(
-            "📌 추적 중인 복선 및 떡밥 목록", 
+            "📌 추적 중인 복선 및 떡밥 목록 (수정 가능)", 
             value=st.session_state.foreshadowing_list, 
             placeholder="예:\n- [미회수] 1화: 피 묻은 회중시계의 원래 주인\n- [미회수] 2화: 황대수가 남긴 암호 쪽지\n- [회수완료] 3화: 정보원의 진짜 정체",
             height=200
@@ -518,18 +564,30 @@ with tab6:
 
     # 5. 시점(POV) 전환기
     with st.expander("🎭 5. 1인칭 주인공 / 관찰자 시점(POV) 전환기"):
-        st.markdown("현재 본문을 다른 인물의 시점(1인칭 나, 3인칭 관찰자, 빌런 시점)으로 다시 씁니다.")
+        st.markdown("선택한 본문이나 장면을 다른 인물의 시점(1인칭 나, 3인칭 관찰자, 빌런 시점)으로 다시 씁니다.")
+        target_pov_text = select_target_text("pov")
+        
         pov_target = st.selectbox("변환할 시점", [
             "주인공 1인칭 시점 (내면 심리 극대화)",
             "조력자/추적자 시점에서 바라본 주인공 (3인칭 관찰자)",
             "빌런/상대방 시점 (이면의 음모와 긴장감)",
             "전지적 작가 시점 (객관적/웅장한 묘사)"
         ])
-        if st.button("🎭 선택한 시점으로 본문 변환"):
-            with st.spinner("시점을 전환하여 재집필 중입니다..."):
-                try:
-                    p = f"[원문 본문]:\n{st.session_state.current_ep_content}\n\n[요청]: 위 장면을 '{pov_target}'으로 재해석하여 새로운 시각의 본문으로 다시 작성해줘."
-                    pov_result = generate_ai(p)
-                    st.text_area("🎭 시점 변환 본문 결과", value=pov_result, height=350)
-                except Exception as e:
-                    st.error(f"오류: {e}")
+        
+        if st.button("🎭 선택한 시점으로 본문 변환 실행"):
+            if target_pov_text.strip():
+                with st.spinner("시점을 전환하여 재집필 중입니다..."):
+                    try:
+                        p = f"[원문 본문]:\n{target_pov_text}\n\n[요청]: 위 장면을 '{pov_target}'으로 재해석하여 새로운 시각의 본문으로 다시 작성해줘."
+                        st.session_state.pov_result_text = generate_ai(p)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"오류: {e}")
+            else:
+                st.warning("변환할 본문 내용이 없습니다.")
+
+        if "pov_result_text" in st.session_state and st.session_state.pov_result_text:
+            st.text_area("🎭 시점 변환 본문 결과", value=st.session_state.pov_result_text, height=350)
+            if st.button("📥 이 시점 변환 결과를 5번 탭 본문(현재 작업)으로 가져오기"):
+                st.session_state.current_ep_content = st.session_state.pov_result_text
+                st.success("5번 탭 본문으로 성공적으로 가져왔습니다! 5번 탭에서 확인 후 서재에 저장하세요.")
