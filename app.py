@@ -1,6 +1,5 @@
 import streamlit as st
 import json
-import streamlit.components.v1 as components
 from google import genai
 from google.genai import types
 
@@ -9,6 +8,27 @@ st.set_page_config(page_title="웹소설 스튜디오 Pro Max", layout="wide")
 # 1. API 키 연동 (Secrets 1순위 -> 수동 입력 2순위)
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
+# 2. 세션 상태 데이터 초기화
+data_fields = [
+    "custom_story_lore", "worldview", "synopsis", 
+    "custom_char_lore", "characters", "plot", "notes",
+    "foreshadowing_list", "compressed_summaries"
+]
+for f in data_fields:
+    if f not in st.session_state:
+        st.session_state[f] = ""
+
+if "episode_list" not in st.session_state:
+    st.session_state.episode_list = {}
+if "selected_episodes" not in st.session_state:
+    st.session_state.selected_episodes = []
+
+if "current_ep_title" not in st.session_state:
+    st.session_state.current_ep_title = "제1화 - 시작"
+if "current_ep_content" not in st.session_state:
+    st.session_state.current_ep_content = ""
+
+# 사이드바 제어판
 with st.sidebar:
     st.header("⚙️ 시스템 & AI 제어")
     user_key = st.text_input("Gemini API Key", value=api_key, type="password", help="Secrets에 등록되어 있으면 자동 적용됩니다.")
@@ -33,41 +53,15 @@ with st.sidebar:
         value="웹소설 1화 표준 (~4,500자)"
     )
 
-# 2. 세션 상태 데이터 초기화
-data_fields = [
-    "custom_story_lore", "worldview", "synopsis", 
-    "custom_char_lore", "characters", "plot", "notes",
-    "foreshadowing_list", "compressed_summaries"
-]
-for f in data_fields:
-    if f not in st.session_state:
-        st.session_state[f] = ""
-
-if "episode_list" not in st.session_state:
-    st.session_state.episode_list = {}
-if "selected_episodes" not in st.session_state:
-    st.session_state.selected_episodes = []
-
-if "current_ep_title" not in st.session_state:
-    st.session_state.current_ep_title = "제1화 - 시작"
-if "current_ep_content" not in st.session_state:
-    st.session_state.current_ep_content = ""
-
-# 3. 사이드바: 📚 서재, TXT 내보내기 & 백업
-with st.sidebar:
     st.markdown("---")
-    st.subheader("📚 집필된 회차 서재")
-    
+    st.subheader("📚 회차 서재")
     if st.session_state.episode_list:
         ep_titles = list(st.session_state.episode_list.keys())
-        
         st.session_state.selected_episodes = st.multiselect(
             "🔗 AI 생성에 반영할 회차 선택 (체크)",
             options=ep_titles,
-            default=st.session_state.selected_episodes,
-            help="체크된 회차 본문이 프롬프트 맥락으로 자동 주입됩니다."
+            default=st.session_state.selected_episodes
         )
-        
         selected_ep = st.selectbox("불러올 회차 선택", options=ep_titles)
         col_load, col_del = st.columns(2)
         with col_load:
@@ -76,12 +70,13 @@ with st.sidebar:
                 st.session_state.current_ep_content = st.session_state.episode_list[selected_ep]
                 st.rerun()
         with col_del:
-            if st.button("🗑️ 선택 삭제"):
+            if st.button("🗑️ 회차 삭제"):
                 del st.session_state.episode_list[selected_ep]
                 if selected_ep in st.session_state.selected_episodes:
                     st.session_state.selected_episodes.remove(selected_ep)
                 st.rerun()
 
+        # 전체 TXT 다운로드
         full_novel_text = "\n\n" + "="*40 + "\n\n"
         combined_text = full_novel_text.join([f"[{title}]\n\n{content}" for title, content in st.session_state.episode_list.items()])
         st.download_button(
@@ -91,66 +86,45 @@ with st.sidebar:
             mime="text/plain"
         )
     else:
-        st.info("아직 저장된 회차가 없습니다.")
+        st.info("저장된 회차가 없습니다.")
 
-    st.markdown("---")
-    st.subheader("💾 데이터 백업 & 복원")
+# 메인 화면 상단 헤더 & 원클릭 백업/복원 바
+st.title("✍️ 웹소설 유니버스 & 스튜디오 Pro Max")
+
+# [핵심] 모바일에서도 한눈에 보이는 최상단 프로젝트 저장 & 불러오기 바
+with st.expander("💾 [필수] 프로젝트 전체 저장 & 불러오기 (종료 전 백업)", expanded=False):
+    st.markdown("스마트폰 브라우저가 꺼지면 메모리가 리셋될 수 있으니, **작업을 마칠 때 아래 '프로젝트 전체 백업 다운로드'를 눌러 스마트폰 파일함에 저장**해 두세요. 다시 켤 때 해당 파일을 넣으면 1초 만에 모든 설정과 본문이 복구됩니다.")
+    col_b1, col_b2 = st.columns(2)
     
-    uploaded_file = st.file_uploader("백업 파일 (.json) 불러오기", type=["json"])
-    if uploaded_file is not None:
-        try:
-            data = json.load(uploaded_file)
-            for f in data_fields:
-                st.session_state[f] = data.get(f, "")
-            st.session_state.episode_list = data.get("episode_list", {})
-            st.session_state.selected_episodes = data.get("selected_episodes", [])
-            st.success("백업 데이터를 성공적으로 불러왔습니다!")
-        except Exception as e:
-            st.error(f"파일 불러오기 오류: {e}")
-
     current_project = {f: st.session_state[f] for f in data_fields}
     current_project["episode_list"] = st.session_state.episode_list
     current_project["selected_episodes"] = st.session_state.selected_episodes
-
     project_json = json.dumps(current_project, ensure_ascii=False, indent=2)
-    st.download_button(
-        label="📥 전체 프로젝트 백업 (JSON)",
-        data=project_json,
-        file_name="webnovel_universe_backup.json",
-        mime="application/json"
-    )
 
-    if st.button("⚠️ 브라우저 자동 저장 초기화"):
-        components.html(
-            """
-            <script>
-                localStorage.removeItem('novel_studio_backup_v8');
-                window.parent.location.reload();
-            </script>
-            """,
-            height=0
+    with col_b1:
+        st.download_button(
+            label="📥 현재 작업 전체 저장 (JSON 다운로드)",
+            data=project_json,
+            file_name="my_webnovel_project.json",
+            mime="application/json",
+            use_container_width=True
         )
-
-# 4. 실시간 브라우저 자동 저장
-save_payload = json.dumps(current_project)
-components.html(
-    f"""
-    <script>
-        const currentData = {save_payload};
-        const hasData = Object.values(currentData).some(v => v !== "" && Object.keys(v).length > 0);
-        if (hasData) {{
-            localStorage.setItem('novel_studio_backup_v8', JSON.stringify(currentData));
-        }}
-    </script>
-    """,
-    height=0
-)
-
-# 5. 메인 화면 & API 클라이언트 (Gemini 3.6 최신 모델 연동)
-st.title("✍️ 웹소설 유니버스 & 스튜디오 Pro Max")
+    with col_b2:
+        uploaded_backup = st.file_uploader("📂 저장된 프로젝트 파일(.json) 불러오기", type=["json"], label_visibility="collapsed")
+        if uploaded_backup is not None:
+            try:
+                data = json.load(uploaded_backup)
+                for f in data_fields:
+                    st.session_state[f] = data.get(f, "")
+                st.session_state.episode_list = data.get("episode_list", {})
+                st.session_state.selected_episodes = data.get("selected_episodes", [])
+                st.success("✅ 프로젝트가 완벽히 복구되었습니다!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"불러오기 오류: {e}")
 
 if not api_key:
-    st.warning("👈 사이드바에 Gemini API Key를 입력하거나 Secrets 설정을 완료해 주세요.")
+    st.warning("👈 좌측 상단 화살표(>>)를 눌러 사이드바에 Gemini API Key를 입력해 주세요.")
     st.stop()
 
 client = genai.Client(api_key=api_key)
@@ -226,6 +200,7 @@ def select_target_text(prefix_key):
         
     return target_text
 
+# 탭 메뉴
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🌍 1. 스토리/세계관 설정", 
     "👥 2. 인물 설정 (원안/확장)", 
@@ -249,7 +224,7 @@ with tab1:
         "작가 고유 스토리/배경 원안 (자유 입력)", 
         value=st.session_state.custom_story_lore, 
         placeholder="예: 사건의 배경, 범죄 조직의 실체, 고유 규칙, 미스터리 등",
-        height=200
+        height=250
     )
 
     st.markdown("---")
@@ -288,8 +263,8 @@ with tab2:
     st.session_state.custom_char_lore = st.text_area(
         "작가 고유 인물 원안 (주인공, 조력자, 핵심 빌런)", 
         value=st.session_state.custom_char_lore, 
-        placeholder="예:\n- 주인공: 이육사 (실종 수사관)\n- 조력자: 추수국 (추적자)\n- 빌런: 황대수",
-        height=200
+        placeholder="예:\n- 주인공: 백은조, 추수국\n- 빌런: 크람푸스",
+        height=250
     )
 
     st.markdown("---")
@@ -321,18 +296,18 @@ with tab2:
 
     st.session_state.characters = st.text_area("완성된 등장인물 상세 설정집", value=st.session_state.characters, height=250)
 
-# 탭 3: 시놉시스 (전체 메인 / 특정 회차 선택 모드 탑재)
+# 탭 3: 시놉시스
 with tab3:
     st.subheader("🎲 3. 시놉시스 생성")
     
     synop_mode = st.radio("시놉시스 생성 범위", ["전체 메인 시놉시스 (작품 전체 윤곽)", "특정 회차 전용 시놉시스 (예: 제3화 단독 줄거리)"], horizontal=True)
     
     if synop_mode == "특정 회차 전용 시놉시스 (예: 제3화 단독 줄거리)":
-        target_ep_name = st.text_input("목표 회차", value="제3화", placeholder="예: 제3화, 제12화 등")
-        synop_keyword = st.text_input("해당 회차 핵심 사건 키워드", placeholder="예: 폐공장 잠입 및 단서 확보")
-        prompt_instruction = f"[{target_ep_name} 단독 시놉시스 생성 요청]\n키워드: {synop_keyword}\n체크된 이전 회차의 사건을 이어받아 '{target_ep_name}'에서 일어날 단기 핵심 시놉시스를 작성해줘."
+        target_ep_name = st.text_input("목표 회차", value="제1화", placeholder="예: 제1화, 제2화 등")
+        synop_keyword = st.text_input("해당 회차 핵심 사건 키워드", placeholder="예: 판게아 금고 개방과 역지원 촉탁 발주")
+        prompt_instruction = f"[{target_ep_name} 단독 시놉시스 생성 요청]\n키워드: {synop_keyword}\n설정과 이전 사건을 이어받아 '{target_ep_name}'에서 일어날 단기 핵심 시놉시스를 작성해줘."
     else:
-        synop_keyword = st.text_input("메인 시놉시스 핵심 사건 키워드", placeholder="예: 단서 발견 및 본격 추적 시작")
+        synop_keyword = st.text_input("메인 시놉시스 핵심 사건 키워드", placeholder="예: 거액의 달란트와 프리텐더 연합군, 크람푸스 흑막 척결")
         prompt_instruction = f"[작품 전체 메인 시놉시스 생성 요청]\n키워드: {synop_keyword}\n작품 전체를 관통하는 메인 시놉시스를 작성해줘."
 
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
@@ -369,18 +344,18 @@ with tab3:
 
     st.session_state.synopsis = st.text_area("시놉시스 결과", value=st.session_state.synopsis, height=300)
 
-# 탭 4: 플롯 (전체 흐름 / 특정 회차 전용 플롯 선택 모드 탑재)
+# 탭 4: 플롯
 with tab4:
     st.subheader("🗺️ 4. 회차별 플롯 & 트리트먼트")
     
-    plot_mode = st.radio("플롯 설계 범위", ["특정 회차 전용 플롯 (예: 제2화 씬별 상세 전개)", "연속 회차/전체 플롯 흐름 (예: 1~5화 트리트먼트)"], horizontal=True)
+    plot_mode = st.radio("플롯 설계 범위", ["특정 회차 전용 플롯 (예: 제1화 씬별 상세 전개)", "연속 회차/전체 플롯 흐름 (예: 1~5화 트리트먼트)"], horizontal=True)
     
-    if plot_mode == "특정 회차 전용 플롯 (예: 제2화 씬별 상세 전개)":
-        target_plot_ep = st.text_input("설계할 회차", value="제2화", placeholder="예: 제2화")
-        plot_goal = st.text_input("해당 회차 전개 목표 및 위기", placeholder="예: 정보원의 배신과 도주로 차단")
-        plot_instruction = f"[{target_plot_ep} 씬별 상세 플롯 설계]\n목표: {plot_goal}\n기작성된 이전 회차의 결말을 이어받아 '{target_plot_ep}'의 [오프닝 씬 -> 갈등 심화 -> 위기 -> 엔딩 클리프행어]를 씬 단위로 정밀하게 설계해줘."
+    if plot_mode == "특정 회차 전용 플롯 (예: 제1화 씬별 상세 전개)":
+        target_plot_ep = st.text_input("설계할 회차", value="제1화", placeholder="예: 제1화")
+        plot_goal = st.text_input("해당 회차 전개 목표 및 위기", placeholder="예: 흑막 크람푸스의 음모 포착 및 첫 격돌")
+        plot_instruction = f"[{target_plot_ep} 씬별 상세 플롯 설계]\n목표: {plot_goal}\n설정을 반영하여 '{target_plot_ep}'의 [오프닝 씬 -> 갈등 심화 -> 위기 -> 엔딩 클리프행어]를 씬 단위로 정밀하게 설계해줘."
     else:
-        plot_goal = st.text_input("플롯 전개 범위 및 핵심 흐름", placeholder="예: 1~5화 도주 및 추격전 단계별 전개")
+        plot_goal = st.text_input("플롯 전개 범위 및 핵심 흐름", placeholder="예: 1~4단계 역전의 판게아 정상 결전 흐름")
         plot_instruction = f"[연속 회차 플롯 설계]\n범위: {plot_goal}\n회차별 핵심 사건과 떡밥 배치 구조를 단계별로 설계해줘."
 
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
@@ -435,7 +410,7 @@ with tab5:
                 st.rerun()
         st.markdown("---")
 
-    st.session_state.current_ep_title = st.text_input("집필 회차 제목", value=st.session_state.current_ep_title, placeholder="예: 제2화 - 추적의 시작")
+    st.session_state.current_ep_title = st.text_input("집필 회차 제목", value=st.session_state.current_ep_title, placeholder="예: 제1화 - 운명의 시작")
 
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
     ec1, ec2, ec3, ec4, ec5, ec6, ec7 = st.columns(7)
@@ -470,7 +445,7 @@ with tab5:
                         use_foreshadow=True,
                         use_compressed=True
                     )
-                    p = f"{ctx}\n\n[이번 회차 집필 요청]: {st.session_state.current_ep_title}\n기작성된 회차 맥락을 이어받아 1화 분량의 본문을 완성해줘."
+                    p = f"{ctx}\n\n[이번 회차 집필 요청]: {st.session_state.current_ep_title}\n설정과 플롯 맥락을 반영하여 1화 분량의 소설 본문을 완성해줘."
                     st.session_state.current_ep_content = generate_ai(p)
                     st.session_state.episode_list[st.session_state.current_ep_title] = st.session_state.current_ep_content
                     st.rerun()
@@ -550,7 +525,7 @@ with tab6:
     with st.expander("💬 3. 인물별 고유 말투(보이스) 튜너 (Character Voice Tuner)", expanded=False):
         st.markdown("특정 인물의 대사를 선택하여 **고유한 어조**로 일괄 톤 교정합니다.")
         target_voice_text = select_target_text("voice")
-        target_char_name = st.text_input("교정할 캐릭터 이름", placeholder="예: 추수국")
+        target_char_name = st.text_input("교정할 캐릭터 이름", placeholder="예: 추수국, 백은조")
         voice_style = st.selectbox("적용할 말투 스타일", [
             "거칠고 날카로운 하드보일드/베테랑 형사 어조",
             "능청스럽고 여유 넘치는 건들거리는 어조",
@@ -647,7 +622,7 @@ with tab6:
         st.session_state.foreshadowing_list = st.text_area(
             "📌 추적 중인 복선 및 떡밥 목록 (수정 가능)", 
             value=st.session_state.foreshadowing_list, 
-            placeholder="예:\n- [미회수] 1화: 피 묻은 회중시계의 원래 주인\n- [미회수] 2화: 황대수가 남긴 암호 쪽지",
+            placeholder="예:\n- [미회수] 1화: 판게아 금고 열쇠의 행방",
             height=180
         )
 
