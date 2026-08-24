@@ -159,7 +159,7 @@ def build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_ch
     if use_char_lore and st.session_state.custom_char_lore.strip():
         ctx.append(f"[작가 고유 캐릭터 원안]\n{st.session_state.custom_char_lore}")
     if use_chars and st.session_state.characters.strip():
-        ctx.append(f"[등장인물 상세 설정집]\n{st.session_state.characters}")
+        ctx.append(f"[기존 등장인물 설정집]\n{st.session_state.characters}")
     if use_synop and st.session_state.synopsis.strip():
         ctx.append(f"[메인 시놉시스]\n{st.session_state.synopsis}")
     if use_plot and st.session_state.plot.strip():
@@ -262,7 +262,6 @@ with tab1:
         st.session_state.worldview = val_wv
         save_all_data()
 
-    # 상시 표시되는 선택 반영 필터
     st.markdown("#### 🎯 확장된 내용 중 일부만 내 원안(1-1)에 반영하기")
     c_filter, c_btn = st.columns([3, 1])
     with c_filter:
@@ -312,7 +311,7 @@ with tab2:
 
     st.markdown("---")
     st.subheader("👥 2-2. 등장인물 프로필 상세화 및 조연 확장")
-    char_desc = st.text_input("추가/보완 요청 사항", placeholder="예: 주요 인물 프로필 완성, 신규 조력자 2명 추가", key="char_expand_req")
+    char_desc = st.text_area("⚡ 추가/보완 요청 사항 (★최우선 반영됨)", placeholder="예: 백은조는 여자야. 20대 중반의 엄청난 미녀. 그리고 추수국 설정 보완해줘.", key="char_expand_req", height=90)
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -323,7 +322,7 @@ with tab2:
         use_wv_for_c = st.checkbox("🔗 확장 세계관 반영", value=True, key="acc_c_wv")
 
     if st.button("👥 캐릭터 프로필 생성 및 확장", key="btn_gen_char"):
-        with st.spinner("등장인물 상세 프로필을 설계 중입니다..."):
+        with st.spinner("작가의 추가 요청사항을 최우선으로 반영하여 인물 프로필을 설계 중입니다..."):
             try:
                 ctx = build_context_prompt(
                     use_story=use_story_for_c, 
@@ -331,7 +330,17 @@ with tab2:
                     use_char_lore=use_char_lore_for_c, 
                     use_chars=False, use_synop=False, use_plot=False, use_treatment=False, use_selected_eps=False, use_foreshadow=False, use_compressed=False
                 )
-                p = f"{ctx}\n\n[추가 요청]: {char_desc}\n위 설정을 기반으로 인물들의 상세 프로필(외모, 성격, 심리, 능력치 한계, 대사 톤)을 완성해줘."
+                p = f"""[★ 최우선 필수 지침 (Override Rule)]
+작가가 입력한 아래 [추가/보완 요청 사항]은 이전 설정보다 최우선 순위입니다. 기존 설정과 충돌하더라도 아래 작가의 지시를 100% 무조건 적용하여 프로필을 작성하세요:
+👉 "{char_desc if char_desc.strip() else '기본 설정 상세화'}"
+
+[기존 참조 배경 설정]
+{ctx}
+
+[작성 요구사항]
+1. 작가의 [추가/보완 요청 사항]을 완벽히 반영할 것. (예: 인물의 성별, 나이, 외모, 능력 등 변경 지시 준수)
+2. 주요 인물들의 상세 프로필(이름, 성별, 나이, 외모 묘사, 성격, 심리적 결핍, 능력/특기, 대표 대사 톤)을 빠짐없이 완성할 것."""
+                
                 st.session_state.characters = generate_ai(p)
                 save_all_data()
                 st.rerun()
@@ -343,11 +352,10 @@ with tab2:
         st.session_state.characters = val_chars
         save_all_data()
 
-    # 상시 표시되는 인물 선택 반영 필터
     st.markdown("#### 🎯 확장된 인물 설정 중 특정 내용만 캐릭터 원안(2-1)에 반영하기")
     c_cfilter, c_cbtn = st.columns([3, 1])
     with c_cfilter:
-        char_apply_target = st.text_input("원안에 반영할 특정 인물/설정 입력", placeholder="예: 추수국의 성격과 말버릇 적용, 백은조의 과거 트라우마 반영", key="char_apply_target")
+        char_apply_target = st.text_input("원안에 반영할 특정 인물/설정 입력", placeholder="예: 백은조의 외모와 성격 적용, 추수국의 성격과 말버릇 적용", key="char_apply_target")
     with c_cbtn:
         st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
         if st.button("📥 캐릭터 원안에 선택 반영", key="btn_apply_char_part"):
@@ -498,7 +506,6 @@ with tab5:
         st.session_state.current_ep_title = val_ep_title
         save_all_data()
 
-    # 3, 4번 탭에서 주사위 굴려 건진 콘티/트리트먼트 입력창
     st.markdown("📝 **이번 회차에 참고할 핵심 시나리오 & 씬 트리트먼트 콘티 (선택 사항)**")
     val_treatment = st.text_area(
         "3, 4번 탭에서 채택한 이번 회차 시놉시스/씬 구성을 여기에 붙여넣거나 직접 메모해 두세요. (AI 본문 작성 시 최우선 반영)",
