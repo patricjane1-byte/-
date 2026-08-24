@@ -1,32 +1,62 @@
 import streamlit as st
 import json
+import os
 from google import genai
 from google.genai import types
 
 st.set_page_config(page_title="웹소설 스튜디오 Pro Max", layout="wide")
 
+# ==========================================
+# 0. 영구 자동 저장 데이터 파일 시스템 (절대 리셋 방지)
+# ==========================================
+DATA_FILE = "novel_project_data.json"
+
+default_data = {
+    "custom_story_lore": "",
+    "worldview": "",
+    "synopsis": "",
+    "custom_char_lore": "",
+    "characters": "",
+    "plot": "",
+    "notes": "",
+    "foreshadowing_list": "",
+    "compressed_summaries": "",
+    "episode_list": {},
+    "selected_episodes": [],
+    "current_ep_title": "제1화 - 시작",
+    "current_ep_content": ""
+}
+
+def load_saved_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                for k, v in default_data.items():
+                    if k not in saved:
+                        saved[k] = v
+                return saved
+        except Exception:
+            return default_data.copy()
+    return default_data.copy()
+
+def save_all_data():
+    save_payload = {k: st.session_state.get(k, default_data[k]) for k in default_data.keys()}
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(save_payload, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.sidebar.error(f"저장 오류: {e}")
+
+# 초기 구동 시 저장된 파일에서 세션 상태 복원
+if "initialized" not in st.session_state:
+    saved_state = load_saved_data()
+    for k, v in saved_state.items():
+        st.session_state[k] = v
+    st.session_state.initialized = True
+
 # 1. API 키 연동 (Secrets 1순위 -> 수동 입력 2순위)
 api_key = st.secrets.get("GEMINI_API_KEY", "")
-
-# 2. 세션 상태 데이터 초기화
-data_fields = [
-    "custom_story_lore", "worldview", "synopsis", 
-    "custom_char_lore", "characters", "plot", "notes",
-    "foreshadowing_list", "compressed_summaries"
-]
-for f in data_fields:
-    if f not in st.session_state:
-        st.session_state[f] = ""
-
-if "episode_list" not in st.session_state:
-    st.session_state.episode_list = {}
-if "selected_episodes" not in st.session_state:
-    st.session_state.selected_episodes = []
-
-if "current_ep_title" not in st.session_state:
-    st.session_state.current_ep_title = "제1화 - 시작"
-if "current_ep_content" not in st.session_state:
-    st.session_state.current_ep_content = ""
 
 # 사이드바 제어판
 with st.sidebar:
@@ -60,7 +90,8 @@ with st.sidebar:
         st.session_state.selected_episodes = st.multiselect(
             "🔗 AI 생성에 반영할 회차 선택 (체크)",
             options=ep_titles,
-            default=st.session_state.selected_episodes
+            default=st.session_state.selected_episodes,
+            on_change=save_all_data
         )
         selected_ep = st.selectbox("불러올 회차 선택", options=ep_titles)
         col_load, col_del = st.columns(2)
@@ -68,12 +99,14 @@ with st.sidebar:
             if st.button("📖 회차 열기"):
                 st.session_state.current_ep_title = selected_ep
                 st.session_state.current_ep_content = st.session_state.episode_list[selected_ep]
+                save_all_data()
                 st.rerun()
         with col_del:
             if st.button("🗑️ 회차 삭제"):
                 del st.session_state.episode_list[selected_ep]
                 if selected_ep in st.session_state.selected_episodes:
                     st.session_state.selected_episodes.remove(selected_ep)
+                save_all_data()
                 st.rerun()
 
         # 전체 TXT 다운로드
@@ -88,40 +121,9 @@ with st.sidebar:
     else:
         st.info("저장된 회차가 없습니다.")
 
-# 메인 화면 상단 헤더 & 원클릭 백업/복원 바
+# 메인 화면 상단 헤더
 st.title("✍️ 웹소설 유니버스 & 스튜디오 Pro Max")
-
-# [핵심] 모바일에서도 한눈에 보이는 최상단 프로젝트 저장 & 불러오기 바
-with st.expander("💾 [필수] 프로젝트 전체 저장 & 불러오기 (종료 전 백업)", expanded=False):
-    st.markdown("스마트폰 브라우저가 꺼지면 메모리가 리셋될 수 있으니, **작업을 마칠 때 아래 '프로젝트 전체 백업 다운로드'를 눌러 스마트폰 파일함에 저장**해 두세요. 다시 켤 때 해당 파일을 넣으면 1초 만에 모든 설정과 본문이 복구됩니다.")
-    col_b1, col_b2 = st.columns(2)
-    
-    current_project = {f: st.session_state[f] for f in data_fields}
-    current_project["episode_list"] = st.session_state.episode_list
-    current_project["selected_episodes"] = st.session_state.selected_episodes
-    project_json = json.dumps(current_project, ensure_ascii=False, indent=2)
-
-    with col_b1:
-        st.download_button(
-            label="📥 현재 작업 전체 저장 (JSON 다운로드)",
-            data=project_json,
-            file_name="my_webnovel_project.json",
-            mime="application/json",
-            use_container_width=True
-        )
-    with col_b2:
-        uploaded_backup = st.file_uploader("📂 저장된 프로젝트 파일(.json) 불러오기", type=["json"], label_visibility="collapsed")
-        if uploaded_backup is not None:
-            try:
-                data = json.load(uploaded_backup)
-                for f in data_fields:
-                    st.session_state[f] = data.get(f, "")
-                st.session_state.episode_list = data.get("episode_list", {})
-                st.session_state.selected_episodes = data.get("selected_episodes", [])
-                st.success("✅ 프로젝트가 완벽히 복구되었습니다!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"불러오기 오류: {e}")
+st.caption("🔒 모든 고유 설정, 인물 원안, 회차 본문은 입력/수정 즉시 영구 자동 저장됩니다.")
 
 if not api_key:
     st.warning("👈 좌측 상단 화살표(>>)를 눌러 사이드바에 Gemini API Key를 입력해 주세요.")
@@ -217,15 +219,21 @@ with tab1:
     if txt_story is not None:
         try:
             st.session_state.custom_story_lore = txt_story.read().decode("utf-8")
+            save_all_data()
             st.success("스토리 설정을 불러왔습니다!")
         except Exception as e:
             st.error(f"파일 읽기 오류: {e}")
-    st.session_state.custom_story_lore = st.text_area(
-        "작가 고유 스토리/배경 원안 (자유 입력)", 
+            
+    val_story = st.text_area(
+        "작가 고유 스토리/배경 원안 (자동 저장됨)", 
         value=st.session_state.custom_story_lore, 
         placeholder="예: 사건의 배경, 범죄 조직의 실체, 고유 규칙, 미스터리 등",
-        height=250
+        height=250,
+        key="input_custom_story"
     )
+    if val_story != st.session_state.custom_story_lore:
+        st.session_state.custom_story_lore = val_story
+        save_all_data()
 
     st.markdown("---")
     st.subheader("🌍 1-2. AI 세계관 확장 및 규칙 체계화")
@@ -244,11 +252,15 @@ with tab1:
                 base_ctx = f"작가의 고유 스토리 설정:\n{st.session_state.custom_story_lore}\n\n" if use_story_for_wv else ""
                 p = f"{base_ctx}장르: {genre}\n톤: {tone}\n추가 테마: {concept}\n위 내용을 바탕으로 세부 사회구조, 세력도, 규칙을 확장해줘."
                 st.session_state.worldview = generate_ai(p)
+                save_all_data()
                 st.rerun()
             except Exception as e:
                 st.error(f"오류: {e}")
 
-    st.session_state.worldview = st.text_area("확장된 세계관 설정집", value=st.session_state.worldview, height=200)
+    val_wv = st.text_area("확장된 세계관 설정집", value=st.session_state.worldview, height=200, key="input_wv")
+    if val_wv != st.session_state.worldview:
+        st.session_state.worldview = val_wv
+        save_all_data()
 
 # 탭 2: 인물 설정
 with tab2:
@@ -257,15 +269,21 @@ with tab2:
     if txt_char is not None:
         try:
             st.session_state.custom_char_lore = txt_char.read().decode("utf-8")
+            save_all_data()
             st.success("인물 설정을 불러왔습니다!")
         except Exception as e:
             st.error(f"파일 읽기 오류: {e}")
-    st.session_state.custom_char_lore = st.text_area(
-        "작가 고유 인물 원안 (주인공, 조력자, 핵심 빌런)", 
+            
+    val_char = st.text_area(
+        "작가 고유 인물 원안 (주인공, 조력자, 핵심 빌런 - 자동 저장됨)", 
         value=st.session_state.custom_char_lore, 
         placeholder="예:\n- 주인공: 백은조, 추수국\n- 빌런: 크람푸스",
-        height=250
+        height=250,
+        key="input_custom_char"
     )
+    if val_char != st.session_state.custom_char_lore:
+        st.session_state.custom_char_lore = val_char
+        save_all_data()
 
     st.markdown("---")
     st.subheader("👥 2-2. 등장인물 프로필 상세화 및 조연 확장")
@@ -290,11 +308,15 @@ with tab2:
                 )
                 p = f"{ctx}\n\n[추가 요청]: {char_desc}\n위 설정을 기반으로 인물들의 상세 프로필을 작성해줘."
                 st.session_state.characters = generate_ai(p)
+                save_all_data()
                 st.rerun()
             except Exception as e:
                 st.error(f"오류: {e}")
 
-    st.session_state.characters = st.text_area("완성된 등장인물 상세 설정집", value=st.session_state.characters, height=250)
+    val_chars = st.text_area("완성된 등장인물 상세 설정집", value=st.session_state.characters, height=250, key="input_chars")
+    if val_chars != st.session_state.characters:
+        st.session_state.characters = val_chars
+        save_all_data()
 
 # 탭 3: 시놉시스
 with tab3:
@@ -338,11 +360,15 @@ with tab3:
                 )
                 p = f"{ctx}\n\n{prompt_instruction}"
                 st.session_state.synopsis = generate_ai(p)
+                save_all_data()
                 st.rerun()
             except Exception as e:
                 st.error(f"오류: {e}")
 
-    st.session_state.synopsis = st.text_area("시놉시스 결과", value=st.session_state.synopsis, height=300)
+    val_syn = st.text_area("시놉시스 결과", value=st.session_state.synopsis, height=300, key="input_syn")
+    if val_syn != st.session_state.synopsis:
+        st.session_state.synopsis = val_syn
+        save_all_data()
 
 # 탭 4: 플롯
 with tab4:
@@ -389,11 +415,15 @@ with tab4:
                 )
                 p = f"{ctx}\n\n{plot_instruction}"
                 st.session_state.plot = generate_ai(p)
+                save_all_data()
                 st.rerun()
             except Exception as e:
                 st.error(f"오류: {e}")
 
-    st.session_state.plot = st.text_area("회차별 플롯/트리트먼트 결과", value=st.session_state.plot, height=300)
+    val_plot = st.text_area("회차별 플롯/트리트먼트 결과", value=st.session_state.plot, height=300, key="input_plot")
+    if val_plot != st.session_state.plot:
+        st.session_state.plot = val_plot
+        save_all_data()
 
 # 탭 5: 본문 집필
 with tab5:
@@ -407,10 +437,14 @@ with tab5:
             if st.button("📥 회차 불러오기"):
                 st.session_state.current_ep_title = ep_to_load
                 st.session_state.current_ep_content = st.session_state.episode_list[ep_to_load]
+                save_all_data()
                 st.rerun()
         st.markdown("---")
 
-    st.session_state.current_ep_title = st.text_input("집필 회차 제목", value=st.session_state.current_ep_title, placeholder="예: 제1화 - 운명의 시작")
+    val_ep_title = st.text_input("집필 회차 제목", value=st.session_state.current_ep_title, placeholder="예: 제1화 - 운명의 시작", key="input_ep_title")
+    if val_ep_title != st.session_state.current_ep_title:
+        st.session_state.current_ep_title = val_ep_title
+        save_all_data()
 
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
     ec1, ec2, ec3, ec4, ec5, ec6, ec7 = st.columns(7)
@@ -448,6 +482,7 @@ with tab5:
                     p = f"{ctx}\n\n[이번 회차 집필 요청]: {st.session_state.current_ep_title}\n설정과 플롯 맥락을 반영하여 1화 분량의 소설 본문을 완성해줘."
                     st.session_state.current_ep_content = generate_ai(p)
                     st.session_state.episode_list[st.session_state.current_ep_title] = st.session_state.current_ep_content
+                    save_all_data()
                     st.rerun()
                 except Exception as e:
                     st.error(f"오류: {e}")
@@ -455,10 +490,14 @@ with tab5:
     with col_save:
         if st.button("💾 현재 수정한 내용을 서재에 저장/업데이트"):
             st.session_state.episode_list[st.session_state.current_ep_title] = st.session_state.current_ep_content
+            save_all_data()
             st.success(f"'{st.session_state.current_ep_title}' 서재 저장 완료!")
             st.rerun()
 
-    st.session_state.current_ep_content = st.text_area("작성된 소설 본문 (직접 편집 가능)", value=st.session_state.current_ep_content, height=400)
+    val_ep_content = st.text_area("작성된 소설 본문 (직접 편집 가능 - 자동 저장됨)", value=st.session_state.current_ep_content, height=400, key="input_ep_content")
+    if val_ep_content != st.session_state.current_ep_content:
+        st.session_state.current_ep_content = val_ep_content
+        save_all_data()
     
     text_len_with_space = len(st.session_state.current_ep_content)
     text_len_without_space = len(st.session_state.current_ep_content.replace(" ", "").replace("\n", ""))
@@ -483,7 +522,10 @@ with tab5:
             unsafe_allow_html=True
         )
 
-    st.session_state.notes = st.text_area("💡 작가 메모 / 아이디어 수첩", value=st.session_state.notes, height=120)
+    val_notes = st.text_area("💡 작가 메모 / 아이디어 수첩", value=st.session_state.notes, height=120, key="input_notes")
+    if val_notes != st.session_state.notes:
+        st.session_state.notes = val_notes
+        save_all_data()
 
 # 탭 6: 고급 작가 엔진 도구함
 with tab6:
@@ -549,6 +591,7 @@ with tab6:
             st.text_area("✨ 말투 튜닝 결과", value=st.session_state.voice_tuned_res, height=220)
             if st.button("📥 이 튜닝 결과를 5번 탭 본문으로 적용"):
                 st.session_state.current_ep_content = st.session_state.voice_tuned_res
+                save_all_data()
                 st.success("5번 탭 본문으로 적용되었습니다!")
 
     with st.expander("⚡ 4. 3가지 분기형 클리프행어(절단신공) 생성기", expanded=False):
@@ -596,6 +639,7 @@ with tab6:
             st.text_area("✨ 윤문된 결과", value=st.session_state.rewritten_result, height=200)
             if st.button("📥 이 윤문 결과를 5번 탭 본문으로 덮어쓰기"):
                 st.session_state.current_ep_content = st.session_state.rewritten_result
+                save_all_data()
                 st.success("5번 탭 본문으로 적용되었습니다!")
 
     with st.expander("🪢 6. 복선(떡밥) & 미회수 단서 트래커", expanded=False):
@@ -613,18 +657,23 @@ with tab6:
                     try:
                         p = f"[분석 대상 본문]\n{target_foreshadow_text}\n\n위 본문들에 등장한 핵심 단서, 의문의 인물, 미해결 사건 등 작가가 회수해야 할 '복선/떡밥 목록'을 번호 매겨 체계적으로 정리해줘."
                         st.session_state.foreshadowing_list = generate_ai(p)
+                        save_all_data()
                         st.rerun()
                     except Exception as e:
                         st.error(f"오류: {e}")
             else:
                 st.warning("분석할 본문이 없습니다.")
         
-        st.session_state.foreshadowing_list = st.text_area(
-            "📌 추적 중인 복선 및 떡밥 목록 (수정 가능)", 
+        val_foreshadow = st.text_area(
+            "📌 추적 중인 복선 및 떡밥 목록 (수정 가능 - 자동 저장됨)", 
             value=st.session_state.foreshadowing_list, 
             placeholder="예:\n- [미회수] 1화: 판게아 금고 열쇠의 행방",
-            height=180
+            height=180,
+            key="input_foreshadow"
         )
+        if val_foreshadow != st.session_state.foreshadowing_list:
+            st.session_state.foreshadowing_list = val_foreshadow
+            save_all_data()
 
     with st.expander("🎭 7. 1인칭 주인공 / 관찰자 시점(POV) 전환기", expanded=False):
         st.markdown("선택한 본문이나 장면을 다른 인물의 시점으로 다시 씁니다.")
@@ -653,6 +702,7 @@ with tab6:
             st.text_area("🎭 시점 변환 본문 결과", value=st.session_state.pov_result_text, height=250)
             if st.button("📥 이 시점 변환 결과를 5번 탭 본문(현재 작업)으로 가져오기"):
                 st.session_state.current_ep_content = st.session_state.pov_result_text
+                save_all_data()
                 st.success("5번 탭 본문으로 성공적으로 가져왔습니다!")
 
     with st.expander("🧠 8. 전체 회차 스마트 3줄 압축기 (Long-term Memory Compressor)", expanded=False):
@@ -665,14 +715,19 @@ with tab6:
                         ep_combined = "\n\n".join([f"<{k}>\n{v}" for k, v in st.session_state.episode_list.items()])
                         p = f"[소설 전체 회차 본문]\n{ep_combined}\n\n각 회차별로 다음 3가지 핵심만 1줄씩, 총 3줄로 간결하게 요약 정리해줘:\n- 1) 발생한 핵심 사건\n- 2) 인물 관계 변화\n- 3) 새로 발생/회수된 복선"
                         st.session_state.compressed_summaries = generate_ai(p)
+                        save_all_data()
                         st.rerun()
                     except Exception as e:
                         st.error(f"오류: {e}")
             else:
                 st.info("서재에 저장된 회차가 없습니다.")
                 
-        st.session_state.compressed_summaries = st.text_area(
-            "📌 전체 회차 압축 줄거리 (모든 프롬프트에 자동 전달됨)", 
+        val_comp = st.text_area(
+            "📌 전체 회차 압축 줄거리 (자동 저장됨)", 
             value=st.session_state.compressed_summaries, 
-            height=200
+            height=200,
+            key="input_comp"
         )
+        if val_comp != st.session_state.compressed_summaries:
+            st.session_state.compressed_summaries = val_comp
+            save_all_data()
