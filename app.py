@@ -262,28 +262,30 @@ with tab1:
         st.session_state.worldview = val_wv
         save_all_data()
 
-    if st.session_state.worldview.strip():
-        st.markdown("#### 🎯 확장된 내용 중 일부만 내 원안(1-1)에 반영하기")
-        c_filter, c_btn = st.columns([3, 1])
-        with c_filter:
-            wv_apply_target = st.text_input("원안에 반영할 특정 항목/내용 입력", placeholder="예: 판게아 금고의 작동 규칙만 반영, 비밀 결사대 규칙 반영", key="wv_apply_target")
-        with c_btn:
-            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-            if st.button("📥 스토리 원안에 선택 반영", key="btn_apply_wv_part"):
-                if wv_apply_target.strip():
-                    with st.spinner("해당 항목을 추출하여 원안에 병합 중입니다..."):
-                        try:
-                            extract_p = f"""[확장된 세계관 전문]:\n{st.session_state.worldview}\n\n[추출 및 정돈 요청]:\n위 내용 중에서 '{wv_apply_target}'에 해당하는 핵심 내용만 깔끔한 요약 포인트 형태로 뽑아줘."""
-                            extracted_part = generate_ai(extract_p)
-                            
-                            st.session_state.custom_story_lore += f"\n\n[추가 반영 설정 - {wv_apply_target}]\n{extracted_part}"
-                            save_all_data()
-                            st.success(f"'{wv_apply_target}' 내용이 1-1 고유 스토리 원안에 성공적으로 추가되었습니다!")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"추출 오류: {e}")
-                else:
-                    st.warning("반영할 내용을 입력해 주세요.")
+    # 상시 표시되는 선택 반영 필터
+    st.markdown("#### 🎯 확장된 내용 중 일부만 내 원안(1-1)에 반영하기")
+    c_filter, c_btn = st.columns([3, 1])
+    with c_filter:
+        wv_apply_target = st.text_input("원안에 반영할 특정 항목/내용 입력", placeholder="예: 판게아 금고의 작동 규칙만 반영, 비밀 결사대 규칙 반영", key="wv_apply_target")
+    with c_btn:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("📥 스토리 원안에 선택 반영", key="btn_apply_wv_part"):
+            if not st.session_state.worldview.strip():
+                st.warning("먼저 세계관 확장을 생성하거나 확장 결과란에 내용을 적어주세요.")
+            elif wv_apply_target.strip():
+                with st.spinner("해당 항목을 추출하여 원안에 병합 중입니다..."):
+                    try:
+                        extract_p = f"""[확장된 세계관 전문]:\n{st.session_state.worldview}\n\n[추출 및 정돈 요청]:\n위 내용 중에서 '{wv_apply_target}'에 해당하는 핵심 내용만 깔끔한 요약 포인트 형태로 뽑아줘."""
+                        extracted_part = generate_ai(extract_p)
+                        
+                        st.session_state.custom_story_lore += f"\n\n[추가 반영 설정 - {wv_apply_target}]\n{extracted_part}"
+                        save_all_data()
+                        st.success(f"'{wv_apply_target}' 내용이 1-1 고유 스토리 원안에 성공적으로 추가되었습니다!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"추출 오류: {e}")
+            else:
+                st.warning("반영할 내용을 입력해 주세요.")
 
 # 탭 2: 인물 설정
 with tab2:
@@ -341,29 +343,30 @@ with tab2:
         st.session_state.characters = val_chars
         save_all_data()
 
-    # 인물 확장 내용 중 특정 인물 성격/설정만 원안(2-1)에 선택 반영
-    if st.session_state.characters.strip():
-        st.markdown("#### 🎯 확장된 인물 설정 중 특정 내용만 캐릭터 원안(2-1)에 반영하기")
-        c_cfilter, c_cbtn = st.columns([3, 1])
-        with c_cfilter:
-            char_apply_target = st.text_input("원안에 반영할 특정 인물/설정 입력", placeholder="예: 추수국의 성격과 말버릇 적용, 백은조의 과거 트라우마 반영", key="char_apply_target")
-        with c_cbtn:
-            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-            if st.button("📥 캐릭터 원안에 선택 반영", key="btn_apply_char_part"):
-                if char_apply_target.strip():
-                    with st.spinner("인물 설정을 추출하여 원안에 병합 중입니다..."):
-                        try:
-                            extract_cp = f"""[확장된 인물 설정 전문]:\n{st.session_state.characters}\n\n[추출 요청]:\n위 내용 중 '{char_apply_target}'에 해당하는 핵심 내용만 깔끔하게 추출해줘."""
-                            extracted_cpart = generate_ai(extract_cp)
-                            
-                            st.session_state.custom_char_lore += f"\n\n[추가 반영 프로필 - {char_apply_target}]\n{extracted_cpart}"
-                            save_all_data()
-                            st.success(f"'{char_apply_target}' 내용이 2-1 캐릭터 원안에 성공적으로 추가되었습니다!")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"추출 오류: {e}")
-                else:
-                    st.warning("반영할 내용을 입력해 주세요.")
+    # 상시 표시되는 인물 선택 반영 필터
+    st.markdown("#### 🎯 확장된 인물 설정 중 특정 내용만 캐릭터 원안(2-1)에 반영하기")
+    c_cfilter, c_cbtn = st.columns([3, 1])
+    with c_cfilter:
+        char_apply_target = st.text_input("원안에 반영할 특정 인물/설정 입력", placeholder="예: 추수국의 성격과 말버릇 적용, 백은조의 과거 트라우마 반영", key="char_apply_target")
+    with c_cbtn:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("📥 캐릭터 원안에 선택 반영", key="btn_apply_char_part"):
+            if not st.session_state.characters.strip():
+                st.warning("먼저 인물 프로필 생성을 실행하거나 상세 설정집에 내용이 있어야 합니다.")
+            elif char_apply_target.strip():
+                with st.spinner("인물 설정을 추출하여 원안에 병합 중입니다..."):
+                    try:
+                        extract_cp = f"""[확장된 인물 설정 전문]:\n{st.session_state.characters}\n\n[추출 요청]:\n위 내용 중 '{char_apply_target}'에 해당하는 핵심 내용만 깔끔하게 추출해줘."""
+                        extracted_cpart = generate_ai(extract_cp)
+                        
+                        st.session_state.custom_char_lore += f"\n\n[추가 반영 프로필 - {char_apply_target}]\n{extracted_cpart}"
+                        save_all_data()
+                        st.success(f"'{char_apply_target}' 내용이 2-1 캐릭터 원안에 성공적으로 추가되었습니다!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"추출 오류: {e}")
+            else:
+                st.warning("반영할 내용을 입력해 주세요.")
 
 # 탭 3: 시놉시스
 with tab3:
@@ -495,7 +498,7 @@ with tab5:
         st.session_state.current_ep_title = val_ep_title
         save_all_data()
 
-    # [신규 핵심] 3, 4번 탭에서 주사위 굴려 건진 이번 회차 전용 콘티/트리트먼트 입력창
+    # 3, 4번 탭에서 주사위 굴려 건진 콘티/트리트먼트 입력창
     st.markdown("📝 **이번 회차에 참고할 핵심 시나리오 & 씬 트리트먼트 콘티 (선택 사항)**")
     val_treatment = st.text_area(
         "3, 4번 탭에서 채택한 이번 회차 시놉시스/씬 구성을 여기에 붙여넣거나 직접 메모해 두세요. (AI 본문 작성 시 최우선 반영)",
