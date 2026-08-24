@@ -159,9 +159,9 @@ def build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_ch
     if use_char_lore and st.session_state.custom_char_lore.strip():
         ctx.append(f"[작가 고유 캐릭터 원안]\n{st.session_state.custom_char_lore}")
     if use_chars and st.session_state.characters.strip():
-        ctx.append(f"[기존 등장인물 설정집]\n{st.session_state.characters}")
+        ctx.append(f"[등장인물 상세 설정집]\n{st.session_state.characters}")
     if use_synop and st.session_state.synopsis.strip():
-        ctx.append(f"[메인 시놉시스]\n{st.session_state.synopsis}")
+        ctx.append(f"[기존 메인 시놉시스]\n{st.session_state.synopsis}")
     if use_plot and st.session_state.plot.strip():
         ctx.append(f"[플롯 및 트리트먼트]\n{st.session_state.plot}")
     if use_treatment and st.session_state.ep_treatment_guideline.strip():
@@ -338,7 +338,7 @@ with tab2:
 {ctx}
 
 [작성 요구사항]
-1. 작가의 [추가/보완 요청 사항]을 완벽히 반영할 것. (예: 인물의 성별, 나이, 외모, 능력 등 변경 지시 준수)
+1. 작가의 [추가/보완 요청 사항]을 완벽히 반영할 것.
 2. 주요 인물들의 상세 프로필(이름, 성별, 나이, 외모 묘사, 성격, 심리적 결핍, 능력/특기, 대표 대사 톤)을 빠짐없이 완성할 것."""
                 
                 st.session_state.characters = generate_ai(p)
@@ -376,19 +376,18 @@ with tab2:
             else:
                 st.warning("반영할 내용을 입력해 주세요.")
 
-# 탭 3: 시놉시스
+# 탭 3: 시놉시스 (최우선 키워드 지침 및 즉시 현출 엔진 탑재)
 with tab3:
     st.subheader("🎲 3. 시놉시스 생성")
     
-    synop_mode = st.radio("시놉시스 생성 범위", ["전체 메인 시놉시스 (작품 전체 윤곽)", "특정 회차 전용 시놉시스 (예: 제3화 단독 줄거리)"], horizontal=True)
+    synop_mode = st.radio("시놉시스 생성 범위", ["전체 메인 시놉시스 (작품 전체 윤곽)", "특정 회차 전용 시놉시스 (예: 제1화 단독 줄거리)"], horizontal=True, key="syn_scope_radio")
     
-    if synop_mode == "특정 회차 전용 시놉시스 (예: 제3화 단독 줄거리)":
-        target_ep_name = st.text_input("목표 회차", value="제1화", placeholder="예: 제1화, 제2화 등")
-        synop_keyword = st.text_input("해당 회차 핵심 사건 키워드", placeholder="예: 판게아 금고 개방과 역지원 촉탁 발주")
-        prompt_instruction = f"[{target_ep_name} 단독 시놉시스 생성 요청]\n키워드: {synop_keyword}\n설정과 이전 사건을 이어받아 '{target_ep_name}'에서 일어날 단기 핵심 시놉시스를 작성해줘."
+    if synop_mode == "특정 회차 전용 시놉시스 (예: 제1화 단독 줄거리)":
+        target_ep_name = st.text_input("목표 회차", value="제1화", placeholder="예: 제1화, 제2화 등", key="syn_ep_target")
+        synop_keyword = st.text_area("⚡ 해당 회차 핵심 사건 및 전개 키워드 (★최우선 반영)", placeholder="예: 판게아 금고 개방, 백은조와 추수국의 첫 만남, 의문의 괴한 습격", key="syn_keyword_ep", height=85)
     else:
-        synop_keyword = st.text_input("메인 시놉시스 핵심 사건 키워드", placeholder="예: 거액의 달란트와 프리텐더 연합군, 크람푸스 흑막 척결")
-        prompt_instruction = f"[작품 전체 메인 시놉시스 생성 요청]\n키워드: {synop_keyword}\n작품 전체를 관통하는 메인 시놉시스를 작성해줘."
+        target_ep_name = "전체 메인"
+        synop_keyword = st.text_area("⚡ 메인 시놉시스 핵심 사건 및 전개 키워드 (★최우선 반영)", placeholder="예: 거액의 달란트를 노리는 암투, 프리텐더 연합군 집결, 크람푸스의 숨겨진 음모 추적", key="syn_keyword_main", height=85)
 
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
     sc1, sc2, sc3, sc4, sc5 = st.columns(5)
@@ -403,8 +402,8 @@ with tab3:
     with sc5:
         use_s_eps = st.checkbox("체크된 회차 글", value=(synop_mode != "전체 메인 시놉시스 (작품 전체 윤곽)"), key="syn_eps")
 
-    if st.button("🎲 시놉시스 주사위 굴리기"):
-        with st.spinner("시놉시스 생성 중..."):
+    if st.button("🎲 시놉시스 주사위 굴리기 (즉시 생성)", key="btn_gen_synopsis"):
+        with st.spinner("작가의 핵심 키워드를 최우선으로 분석하여 시놉시스를 생성 중입니다..."):
             try:
                 ctx = build_context_prompt(
                     use_story=use_s_story, 
@@ -417,17 +416,54 @@ with tab3:
                     use_foreshadow=True,
                     use_compressed=True
                 )
-                p = f"{ctx}\n\n{prompt_instruction}"
-                st.session_state.synopsis = generate_ai(p)
+                
+                p = f"""[★ 최우선 필수 지침 (Override Rule)]
+작가가 입력한 아래 [핵심 사건 및 전개 키워드]는 다른 모든 설정보다 최우선 순위입니다. 아래 키워드를 서사의 중심 축으로 삼아 시놉시스를 작성하세요:
+👉 "{synop_keyword if synop_keyword.strip() else '설정 기반 흥미진진한 전개'}"
+
+[목표 범위]: {target_ep_name} 시놉시스
+[참조 배경 설정]
+{ctx}
+
+[작성 요구사항]
+1. 작가의 [핵심 키워드] 사건이 반드시 서사 내에서 생생하게 펼쳐지도록 구성할 것.
+2. [도입(사건 발단) -> 전개(갈등 및 위기) -> 절정 -> 다음 이야기로 이어지는 엔딩 훅] 단계가 명확한 고밀도 시놉시스로 작성할 것."""
+
+                result_syn = generate_ai(p)
+                st.session_state.synopsis = result_syn
                 save_all_data()
                 st.rerun()
             except Exception as e:
-                st.error(f"오류: {e}")
+                st.error(f"시놉시스 생성 오류: {e}")
 
-    val_syn = st.text_area("시놉시스 결과 (마음에 드는 부분은 5번 탭 콘티란에 복사해 쓰세요)", value=st.session_state.synopsis, height=300, key="input_syn")
+    val_syn = st.text_area("🎲 생성된 시놉시스 결과 (수정 및 자동 저장됨)", value=st.session_state.synopsis, height=280, key="input_syn")
     if val_syn != st.session_state.synopsis:
         st.session_state.synopsis = val_syn
         save_all_data()
+
+    # 시놉시스 결과 중 원하는 부분을 스토리 원안(1-1)에 바로 반영
+    if st.session_state.synopsis.strip():
+        st.markdown("#### 🎯 시놉시스 내용 중 일부만 내 원안(1-1)에 반영하기")
+        c_sfilter, c_sbtn = st.columns([3, 1])
+        with c_sfilter:
+            syn_apply_target = st.text_input("원안에 반영할 특정 사건/전개 입력", placeholder="예: 1화 사건 발단 전개만 원안에 반영", key="syn_apply_target")
+        with c_sbtn:
+            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("📥 스토리 원안에 선택 반영", key="btn_apply_syn_part"):
+                if syn_apply_target.strip():
+                    with st.spinner("시놉시스 핵심 사건을 원안에 병합 중입니다..."):
+                        try:
+                            extract_sp = f"""[시놉시스 전문]:\n{st.session_state.synopsis}\n\n[추출 요청]:\n위 내용 중 '{syn_apply_target}'에 해당하는 핵심 사건만 깔끔하게 요약 추출해줘."""
+                            extracted_spart = generate_ai(extract_sp)
+                            
+                            st.session_state.custom_story_lore += f"\n\n[추가 반영 사건 - {syn_apply_target}]\n{extracted_spart}"
+                            save_all_data()
+                            st.success(f"'{syn_apply_target}' 내용이 1-1 고유 스토리 원안에 성공적으로 추가되었습니다!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"추출 오류: {e}")
+                else:
+                    st.warning("반영할 내용을 입력해 주세요.")
 
 # 탭 4: 플롯
 with tab4:
@@ -437,11 +473,15 @@ with tab4:
     
     if plot_mode == "특정 회차 전용 플롯 (예: 제1화 씬별 상세 전개)":
         target_plot_ep = st.text_input("설계할 회차", value="제1화", placeholder="예: 제1화")
-        plot_goal = st.text_input("해당 회차 전개 목표 및 위기", placeholder="예: 흑막 크람푸스의 음모 포착 및 첫 격돌")
-        plot_instruction = f"[{target_plot_ep} 씬별 상세 플롯 설계]\n목표: {plot_goal}\n설정을 반영하여 '{target_plot_ep}'의 [오프닝 씬 -> 갈등 심화 -> 위기 -> 엔딩 클리프행어]를 씬 단위로 정밀하게 설계해줘."
+        plot_goal = st.text_area("⚡ 해당 회차 전개 목표 및 위기 (★최우선 반영)", placeholder="예: 흑막 크람푸스의 음모 포착 및 첫 격돌", key="plot_goal_input", height=85)
+        plot_instruction = f"""[★ 최우선 필수 지침 (Override Rule)]
+작가의 전개 목표: "{plot_goal if plot_goal.strip() else '회차 전개'}"
+위 목표를 바탕으로 '{target_plot_ep}'의 [오프닝 씬 -> 갈등 심화 -> 절체절명 위기 -> 엔딩 클리프행어]를 씬 단위로 정밀하게 설계해줘."""
     else:
-        plot_goal = st.text_input("플롯 전개 범위 및 핵심 흐름", placeholder="예: 1~4단계 역전의 판게아 정상 결전 흐름")
-        plot_instruction = f"[연속 회차 플롯 설계]\n범위: {plot_goal}\n회차별 핵심 사건과 떡밥 배치 구조를 단계별로 설계해줘."
+        plot_goal = st.text_area("⚡ 플롯 전개 범위 및 핵심 흐름 (★최우선 반영)", placeholder="예: 1~4단계 역전의 판게아 정상 결전 흐름", key="plot_goal_main_input", height=85)
+        plot_instruction = f"""[★ 최우선 필수 지침 (Override Rule)]
+작가의 전개 범위: "{plot_goal if plot_goal.strip() else '전체 흐름'}"
+회차별 핵심 사건과 떡밥 배치 구조를 단계별로 체계적으로 설계해줘."""
 
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
     pc1, pc2, pc3, pc4, pc5, pc6 = st.columns(6)
@@ -458,8 +498,8 @@ with tab4:
     with pc6:
         use_p_eps = st.checkbox("체크된 회차 글", value=True, key="plot_eps")
 
-    if st.button("🗺️ 플롯 설계 생성"):
-        with st.spinner("플롯 구성 중..."):
+    if st.button("🗺️ 플롯 설계 생성 (즉시 생성)", key="btn_gen_plot"):
+        with st.spinner("플롯을 정밀 구성 중입니다..."):
             try:
                 ctx = build_context_prompt(
                     use_story=use_p_story, 
@@ -478,9 +518,9 @@ with tab4:
                 save_all_data()
                 st.rerun()
             except Exception as e:
-                st.error(f"오류: {e}")
+                st.error(f"플롯 생성 오류: {e}")
 
-    val_plot = st.text_area("회차별 플롯/트리트먼트 결과", value=st.session_state.plot, height=300, key="input_plot")
+    val_plot = st.text_area("회차별 플롯/트리트먼트 결과", value=st.session_state.plot, height=280, key="input_plot")
     if val_plot != st.session_state.plot:
         st.session_state.plot = val_plot
         save_all_data()
