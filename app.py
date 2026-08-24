@@ -7,7 +7,7 @@ from google.genai import types
 st.set_page_config(page_title="웹소설 스튜디오 Pro Max", layout="wide")
 
 # ==========================================
-# 0. 영구 자동 저장 데이터 파일 시스템 (절대 리셋 방지)
+# 0. 영구 자동 저장 데이터 파일 시스템
 # ==========================================
 DATA_FILE = "novel_project_data.json"
 
@@ -48,14 +48,12 @@ def save_all_data():
     except Exception as e:
         st.sidebar.error(f"저장 오류: {e}")
 
-# 초기 구동 시 저장된 파일에서 세션 상태 복원
 if "initialized" not in st.session_state:
     saved_state = load_saved_data()
     for k, v in saved_state.items():
         st.session_state[k] = v
     st.session_state.initialized = True
 
-# 1. API 키 연동 (Secrets 1순위 -> 수동 입력 2순위)
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 # 사이드바 제어판
@@ -109,7 +107,6 @@ with st.sidebar:
                 save_all_data()
                 st.rerun()
 
-        # 전체 TXT 다운로드
         full_novel_text = "\n\n" + "="*40 + "\n\n"
         combined_text = full_novel_text.join([f"[{title}]\n\n{content}" for title, content in st.session_state.episode_list.items()])
         st.download_button(
@@ -121,9 +118,9 @@ with st.sidebar:
     else:
         st.info("저장된 회차가 없습니다.")
 
-# 메인 화면 상단 헤더
+# 메인 화면
 st.title("✍️ 웹소설 유니버스 & 스튜디오 Pro Max")
-st.caption("🔒 모든 고유 설정, 인물 원안, 회차 본문은 입력/수정 즉시 영구 자동 저장됩니다.")
+st.caption("🔒 모든 고유 설정, 인물 원안, 회차 본문은 입력 즉시 영구 자동 저장됩니다.")
 
 if not api_key:
     st.warning("👈 좌측 상단 화살표(>>)를 눌러 사이드바에 Gemini API Key를 입력해 주세요.")
@@ -228,7 +225,7 @@ with tab1:
         "작가 고유 스토리/배경 원안 (자동 저장됨)", 
         value=st.session_state.custom_story_lore, 
         placeholder="예: 사건의 배경, 범죄 조직의 실체, 고유 규칙, 미스터리 등",
-        height=250,
+        height=230,
         key="input_custom_story"
     )
     if val_story != st.session_state.custom_story_lore:
@@ -239,28 +236,52 @@ with tab1:
     st.subheader("🌍 1-2. AI 세계관 확장 및 규칙 체계화")
     col1, col2 = st.columns(2)
     with col1:
-        genre = st.selectbox("장르", ["판타지", "현대판타지", "무협", "로맨스판타지", "SF", "미스터리/스릴러", "다크판타지", "기타"])
-        tone = st.text_input("분위기/톤앤매너", placeholder="예: 하드보일드, 긴장감 넘치는 추적")
+        genre = st.selectbox("장르", ["판타지", "현대판타지", "무협", "로맨스판타지", "SF", "미스터리/스릴러", "다크판타지", "기타"], key="wv_genre")
+        tone = st.text_input("분위기/톤앤매너", placeholder="예: 하드보일드, 긴장감 넘치는 추적", key="wv_tone")
     with col2:
-        concept = st.text_area("보완할 키워드/테마", placeholder="예: 세력 간 암투, 고유 능력의 한계")
+        concept = st.text_area("보완할 키워드/테마", placeholder="예: 세력 간 암투, 고유 능력의 한계", key="wv_concept", height=90)
 
-    use_story_for_wv = st.checkbox("🔗 [접근 제어] 고유 스토리 설정을 반영하여 확장", value=True, key="acc_wv_story")
+    use_story_for_wv = st.checkbox("🔗 [접근 제어] 고유 스토리 원안을 기반으로 확장", value=True, key="acc_wv_story")
     
-    if st.button("🌍 세계관 확장 생성"):
-        with st.spinner("세계관을 구축 중입니다..."):
+    if st.button("🌍 세계관 확장 생성 실행", key="btn_gen_wv"):
+        with st.spinner("세계관을 구축 및 체계화 중입니다..."):
             try:
-                base_ctx = f"작가의 고유 스토리 설정:\n{st.session_state.custom_story_lore}\n\n" if use_story_for_wv else ""
-                p = f"{base_ctx}장르: {genre}\n톤: {tone}\n추가 테마: {concept}\n위 내용을 바탕으로 세부 사회구조, 세력도, 규칙을 확장해줘."
+                base_ctx = f"[작가의 고유 스토리 설정]\n{st.session_state.custom_story_lore}\n\n" if use_story_for_wv else ""
+                p = f"{base_ctx}[요청사항]\n장르: {genre}\n톤앤매너: {tone}\n추가 테마/키워드: {concept}\n위 내용을 바탕으로 세부 사회구조, 세력도, 인물 간 권력 관계, 세계관의 절대 규칙을 풍성하게 확장해줘."
                 st.session_state.worldview = generate_ai(p)
                 save_all_data()
                 st.rerun()
             except Exception as e:
                 st.error(f"오류: {e}")
 
-    val_wv = st.text_area("확장된 세계관 설정집", value=st.session_state.worldview, height=200, key="input_wv")
+    val_wv = st.text_area("확장된 세계관 설정 결과", value=st.session_state.worldview, height=220, key="input_wv")
     if val_wv != st.session_state.worldview:
         st.session_state.worldview = val_wv
         save_all_data()
+
+    # 확장 결과 중 원하는 내용만 원안에 선택 반영하는 필터
+    if st.session_state.worldview.strip():
+        st.markdown("#### 🎯 확장된 내용 중 일부만 내 원안에 반영하기")
+        c_filter, c_btn = st.columns([3, 1])
+        with c_filter:
+            wv_apply_target = st.text_input("원안에 반영할 특정 항목/내용 입력", placeholder="예: 판게아 금고의 작동 규칙만 반영, 추수국의 세력 관계 반영", key="wv_apply_target")
+        with c_btn:
+            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("📥 원안에 선택 반영", key="btn_apply_wv_part"):
+                if wv_apply_target.strip():
+                    with st.spinner("해당 항목을 추출하여 원안에 병합 중입니다..."):
+                        try:
+                            extract_p = f"""[확장된 세계관 전문]:\n{st.session_state.worldview}\n\n[추출 및 정돈 요청]:\n위 내용 중에서 '{wv_apply_target}'에 해당하는 핵심 내용만 깔끔한 요약 포인트 형태로 뽑아줘."""
+                            extracted_part = generate_ai(extract_p)
+                            
+                            st.session_state.custom_story_lore += f"\n\n[추가 반영 설정 - {wv_apply_target}]\n{extracted_part}"
+                            save_all_data()
+                            st.success(f"'{wv_apply_target}' 내용이 1-1 고유 스토리 원안에 성공적으로 추가되었습니다!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"추출 오류: {e}")
+                else:
+                    st.warning("반영할 내용을 입력해 주세요.")
 
 # 탭 2: 인물 설정
 with tab2:
@@ -278,7 +299,7 @@ with tab2:
         "작가 고유 인물 원안 (주인공, 조력자, 핵심 빌런 - 자동 저장됨)", 
         value=st.session_state.custom_char_lore, 
         placeholder="예:\n- 주인공: 백은조, 추수국\n- 빌런: 크람푸스",
-        height=250,
+        height=230,
         key="input_custom_char"
     )
     if val_char != st.session_state.custom_char_lore:
@@ -287,7 +308,7 @@ with tab2:
 
     st.markdown("---")
     st.subheader("👥 2-2. 등장인물 프로필 상세화 및 조연 확장")
-    char_desc = st.text_input("추가/보완 요청 사항", placeholder="예: 주요 인물 프로필 완성, 신규 조력자 2명 추가")
+    char_desc = st.text_input("추가/보완 요청 사항", placeholder="예: 주요 인물 프로필 완성, 신규 조력자 2명 추가", key="char_expand_req")
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -297,8 +318,8 @@ with tab2:
     with c3:
         use_wv_for_c = st.checkbox("🔗 확장 세계관 반영", value=True, key="acc_c_wv")
 
-    if st.button("👥 캐릭터 프로필 생성 및 확장"):
-        with st.spinner("등장인물 설계 중..."):
+    if st.button("👥 캐릭터 프로필 생성 및 확장", key="btn_gen_char"):
+        with st.spinner("등장인물 상세 프로필을 설계 중입니다..."):
             try:
                 ctx = build_context_prompt(
                     use_story=use_story_for_c, 
@@ -306,17 +327,41 @@ with tab2:
                     use_char_lore=use_char_lore_for_c, 
                     use_chars=False, use_synop=False, use_plot=False, use_selected_eps=False, use_foreshadow=False, use_compressed=False
                 )
-                p = f"{ctx}\n\n[추가 요청]: {char_desc}\n위 설정을 기반으로 인물들의 상세 프로필을 작성해줘."
+                p = f"{ctx}\n\n[추가 요청]: {char_desc}\n위 설정을 기반으로 인물들의 상세 프로필(외모, 성격, 심리, 능력치 한계, 대사 톤)을 완성해줘."
                 st.session_state.characters = generate_ai(p)
                 save_all_data()
                 st.rerun()
             except Exception as e:
                 st.error(f"오류: {e}")
 
-    val_chars = st.text_area("완성된 등장인물 상세 설정집", value=st.session_state.characters, height=250, key="input_chars")
+    val_chars = st.text_area("완성된 등장인물 상세 설정집", value=st.session_state.characters, height=220, key="input_chars")
     if val_chars != st.session_state.characters:
         st.session_state.characters = val_chars
         save_all_data()
+
+    # 인물 확장 내용 중 특정 인물 성격/설정만 원안에 선택 반영
+    if st.session_state.characters.strip():
+        st.markdown("#### 🎯 확장된 인물 설정 중 특정 내용만 캐릭터 원안(2-1)에 반영하기")
+        c_cfilter, c_cbtn = st.columns([3, 1])
+        with c_cfilter:
+            char_apply_target = st.text_input("원안에 반영할 특정 인물/설정 입력", placeholder="예: 추수국의 성격과 말버릇 적용, 백은조의 과거 트라우마 반영", key="char_apply_target")
+        with c_cbtn:
+            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("📥 캐릭터 원안에 선택 반영", key="btn_apply_char_part"):
+                if char_apply_target.strip():
+                    with st.spinner("인물 설정을 추출하여 원안에 병합 중입니다..."):
+                        try:
+                            extract_cp = f"""[확장된 인물 설정 전문]:\n{st.session_state.characters}\n\n[추출 요청]:\n위 내용 중 '{char_apply_target}'에 해당하는 핵심 내용만 깔끔하게 추출해줘."""
+                            extracted_cpart = generate_ai(extract_cp)
+                            
+                            st.session_state.custom_char_lore += f"\n\n[추가 반영 프로필 - {char_apply_target}]\n{extracted_cpart}"
+                            save_all_data()
+                            st.success(f"'{char_apply_target}' 내용이 2-1 캐릭터 원안에 성공적으로 추가되었습니다!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"추출 오류: {e}")
+                else:
+                    st.warning("반영할 내용을 입력해 주세요.")
 
 # 탭 3: 시놉시스
 with tab3:
@@ -351,7 +396,7 @@ with tab3:
                 ctx = build_context_prompt(
                     use_story=use_s_story, 
                     use_wv=use_s_wv, 
-                    use_char_lore=use_s_char_lore, 
+                    use_char_lore=use_char_lore, 
                     use_chars=use_s_chars, 
                     use_synop=False, use_plot=False,
                     use_selected_eps=use_s_eps,
