@@ -454,7 +454,7 @@ with tab2:
             else:
                 st.warning("반영할 내용을 입력해 주세요.")
 
-# 탭 3: 회차별 트리트먼트 연동 관리 (독립 저장 버튼 탑재)
+# 탭 3: 회차별 트리트먼트 연동 관리
 with tab3:
     st.subheader("🗺️ 3. 회차별 고정 트리트먼트 관리 (1단계 사건 뼈대)")
     st.caption("각 회차를 선택하고, 해당 화의 핵심 사건 뼈대를 적어둔 뒤 [💾 저장] 버튼을 누르면 4번(시나리오), 5번(본문)에 영구 연동됩니다.")
@@ -488,7 +488,7 @@ with tab3:
         save_all_data()
         st.success(f"[{current_t_ep}] 트리트먼트가 성공적으로 저장되었습니다!")
 
-# 탭 4: 시나리오 주사위 (독립 저장 버튼 탑재)
+# 탭 4: 시나리오 주사위
 with tab4:
     st.subheader("🎲 4. 시나리오 주사위 (회차별 기발한 전개 발산)")
     st.caption("3번 탭의 고정 트리트먼트와 설정을 바탕으로, 막히는 전개를 풀어낼 다양한 씬 아이디어와 반전 시나리오를 주사위 굴리듯 생성합니다.")
@@ -569,35 +569,50 @@ with tab4:
             save_all_data()
             st.success("5번 탭 [3단계 콘티란]으로 전송되었습니다! 5번 탭에서 바로 집필하세요.")
 
-# 탭 5: 3중 본문 집필 & 서재 저장 (독립 저장 버튼 탑재)
+# 탭 5: 3중 본문 집필 & 서재 저장 (트리트먼트 수동 불러오기 및 회차 연동 패치)
 with tab5:
     st.subheader("📖 5. 3중 본문 집필 & 실시간 편집기")
     
-    all_known_eps = list(set(list(st.session_state.ep_treatment_dict.keys()) + list(st.session_state.episode_list.keys())))
-    all_known_eps.sort()
+    # 3번 탭의 트리트먼트 회차 목록을 기본으로 사용
+    available_treatment_keys = list(st.session_state.ep_treatment_dict.keys())
+    if not available_treatment_keys:
+        available_treatment_keys = ["제1화"]
     
     c_ep1, c_ep2 = st.columns([3, 1])
     with c_ep1:
-        st.session_state.current_ep_title = st.selectbox(
-            "집필할 회차 선택", 
-            options=all_known_eps,
-            index=all_known_eps.index(st.session_state.current_ep_title) if st.session_state.current_ep_title in all_known_eps else 0,
-            key="writing_ep_select"
-        )
+        st.session_state.current_ep_title = st.text_input("집필할 회차 이름", value=st.session_state.current_ep_title, placeholder="예: 제1화", key="writing_ep_title_input")
     with c_ep2:
-        if st.button("📂 서재에서 불러오기"):
+        if st.button("📂 서재에서 본문 불러오기"):
             if st.session_state.current_ep_title in st.session_state.episode_list:
                 st.session_state.current_ep_content = st.session_state.episode_list[st.session_state.current_ep_title]
-                st.success("불러왔습니다.")
+                st.success("서재 본문을 불러왔습니다.")
                 st.rerun()
+            else:
+                st.warning("서재에 해당 회차 저장본이 없습니다.")
 
-    # 3번 탭에서 연결된 트리트먼트 표시
-    linked_treatment = st.session_state.ep_treatment_dict.get(st.session_state.current_ep_title, "")
-    with st.expander(f"🔗 [트리트먼트 연결됨] {st.session_state.current_ep_title} 고정 트리트먼트 (3번 탭 연동)", expanded=True):
-        if linked_treatment.strip():
-            st.info(linked_treatment)
+    # 3번 탭에서 저장된 트리트먼트 직접 선택 및 불러오기
+    st.markdown("🗺️ **[2단계 연동] 3번 탭 고정 트리트먼트 선택 및 연결**")
+    c_t_load1, c_t_load2 = st.columns([3, 1])
+    with c_t_load1:
+        chosen_t_key = st.selectbox(
+            "연결할 3번 탭 트리트먼트 선택", 
+            options=available_treatment_keys,
+            index=available_treatment_keys.index(st.session_state.current_treatment_ep) if st.session_state.current_treatment_ep in available_treatment_keys else 0,
+            key="chosen_t_key_dropdown"
+        )
+    with c_t_load2:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("📥 트리트먼트 연동/불러오기", key="btn_apply_chosen_treat"):
+            st.session_state.current_treatment_ep = chosen_t_key
+            save_all_data()
+            st.rerun()
+
+    active_treatment_content = st.session_state.ep_treatment_dict.get(st.session_state.current_treatment_ep, "")
+    with st.expander(f"🔗 현재 연결된 [{st.session_state.current_treatment_ep}] 트리트먼트 내용", expanded=True):
+        if active_treatment_content.strip():
+            st.info(active_treatment_content)
         else:
-            st.warning("⚠️ 3번 탭에 이 회차의 트리트먼트가 비어있습니다. 3번 탭에서 뼈대를 먼저 입력해 두세요.")
+            st.warning("⚠️ 선택된 트리트먼트 내용이 비어있습니다. 3번 탭에서 뼈대를 작성 후 [💾 저장]해 주세요.")
 
     # 현장 최우선 세부 명령
     st.markdown("⚡ **[현장 최상위 명령] 이번 화 현장 콘티 & 시작 오프닝 초안 (★절대 우선)**")
@@ -620,7 +635,7 @@ with tab5:
     with ec2:
         use_e_char = st.checkbox("1단계: 캐릭터 원안 (2-1)", value=True, key="ep_char_lore")
     with ec3:
-        use_e_treat_dict = st.checkbox("2단계: 연결된 회차 트리트먼트 (3번 탭)", value=True, key="ep_treat_dict")
+        use_e_treat_dict = st.checkbox(f"2단계: [{st.session_state.current_treatment_ep}] 트리트먼트", value=True, key="ep_treat_dict")
     with ec4:
         use_e_eps = st.checkbox("이전 회차 본문 연계", value=False, key="ep_eps")
 
@@ -630,7 +645,7 @@ with tab5:
             with st.spinner(f"[{st.session_state.current_ep_title}] 원안 + 트리트먼트 + 현장 초안을 결합하여 집필 중입니다..."):
                 try:
                     user_starter_draft = val_treatment.strip()
-                    current_treat_text = linked_treatment if use_e_treat_dict else ""
+                    current_treat_text = active_treatment_content if use_e_treat_dict else ""
                     
                     ctx = build_context_prompt(
                         use_story=use_e_story, 
@@ -650,7 +665,7 @@ with tab5:
 {user_starter_draft if user_starter_draft else '오프닝 지정 없음 - 트리트먼트부터 시작'}
 \"\"\"
 
-[★ 2단계: {st.session_state.current_ep_title} 회차별 사건 트리트먼트 뼈대 (2순위)]:
+[★ 2단계: {st.session_state.current_treatment_ep} 회차별 사건 트리트먼트 뼈대 (2순위)]:
 \"\"\"
 {current_treat_text if current_treat_text else '트리트먼트 없음'}
 \"\"\"
