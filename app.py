@@ -7,7 +7,7 @@ from google.genai import types
 st.set_page_config(page_title="웹소설 스튜디오 Pro Max", layout="wide")
 
 # ==========================================
-# 0. 영구 자동 저장 데이터 파일 시스템
+# 0. 영구 저장 데이터 파일 시스템
 # ==========================================
 DATA_FILE = "novel_project_data.json"
 
@@ -125,7 +125,7 @@ with st.sidebar:
 
 # 메인 화면
 st.title("✍️ 웹소설 유니버스 & 스튜디오 Pro Max")
-st.caption("🔒 모든 고유 설정, 인물 원안, 회차별 트리트먼트, 본문은 입력 즉시 영구 자동 저장됩니다.")
+st.caption("🔒 모든 원안, 회차별 트리트먼트, 본문은 [💾 저장] 버튼을 누르면 안전하게 영구 저장됩니다.")
 
 if not api_key:
     st.warning("👈 좌측 상단 화살표(>>)를 눌러 사이드바에 Gemini API Key를 입력해 주세요.")
@@ -215,7 +215,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🛠️ 6. 작가 전문 집필 도구 (고급 엔진)"
 ])
 
-# 탭 1: 스토리 설정 (복붙 퀵 패치 기능 탑재)
+# 탭 1: 스토리 설정
 with tab1:
     st.subheader("📌 1-1. 내가 만든 고유 스토리/세계관 설정")
     
@@ -254,15 +254,16 @@ with tab1:
             st.error(f"파일 읽기 오류: {e}")
             
     val_story = st.text_area(
-        "작가 고유 스토리/배경 원안 (자동 저장됨)", 
+        "작가 고유 스토리/배경 원안", 
         value=st.session_state.custom_story_lore, 
         placeholder="예: 사건의 배경, 범죄 조직의 실체, 고유 규칙, 미스터리 등",
         height=230,
         key="input_custom_story"
     )
-    if val_story != st.session_state.custom_story_lore:
+    if st.button("💾 스토리 원안 저장", key="btn_save_story_lore"):
         st.session_state.custom_story_lore = val_story
         save_all_data()
+        st.success("스토리 원안이 안전하게 저장되었습니다!")
 
     st.markdown("---")
     st.subheader("🌍 1-2. 세계관/스토리 창작 및 확장 엔진")
@@ -301,9 +302,10 @@ with tab1:
                 st.error(f"오류: {e}")
 
     val_wv = st.text_area("생성/확장된 설정 결과", value=st.session_state.worldview, height=220, key="input_wv")
-    if val_wv != st.session_state.worldview:
+    if st.button("💾 확장 세계관 결과 저장", key="btn_save_wv"):
         st.session_state.worldview = val_wv
         save_all_data()
+        st.success("확장 세계관 결과가 저장되었습니다!")
 
     st.markdown("#### 🎯 생성된 내용 중 일부만 내 원안(1-1)에 반영하기")
     c_filter, c_btn = st.columns([3, 1])
@@ -329,7 +331,7 @@ with tab1:
             else:
                 st.warning("반영할 내용을 입력해 주세요.")
 
-# 탭 2: 인물 설정 (복붙 퀵 패치 기능 탑재)
+# 탭 2: 인물 설정
 with tab2:
     st.subheader("📌 2-1. 내가 만든 고유 캐릭터 원안")
     
@@ -368,15 +370,16 @@ with tab2:
             st.error(f"파일 읽기 오류: {e}")
             
     val_char = st.text_area(
-        "작가 고유 인물 원안 (주인공, 조력자, 핵심 빌런 - 자동 저장됨)", 
+        "작가 고유 인물 원안 (주인공, 조력자, 핵심 빌런)", 
         value=st.session_state.custom_char_lore, 
         placeholder="예:\n- 주인공: 백은조, 추수국\n- 빌런: 크람푸스",
         height=230,
         key="input_custom_char"
     )
-    if val_char != st.session_state.custom_char_lore:
+    if st.button("💾 캐릭터 원안 저장", key="btn_save_char_lore"):
         st.session_state.custom_char_lore = val_char
         save_all_data()
+        st.success("캐릭터 원안이 안전하게 저장되었습니다!")
 
     st.markdown("---")
     st.subheader("👥 2-2. 인물 프로필 및 세부 비하인드 창작 엔진")
@@ -422,9 +425,10 @@ with tab2:
                 st.error(f"오류: {e}")
 
     val_chars = st.text_area("생성된 인물 설정 결과", value=st.session_state.characters, height=220, key="input_chars")
-    if val_chars != st.session_state.characters:
+    if st.button("💾 인물 설정 상세 결과 저장", key="btn_save_chars"):
         st.session_state.characters = val_chars
         save_all_data()
+        st.success("인물 설정 상세 결과가 저장되었습니다!")
 
     st.markdown("#### 🎯 생성된 인물 설정 중 특정 내용만 캐릭터 원안(2-1)에 반영하기")
     c_cfilter, c_cbtn = st.columns([3, 1])
@@ -450,10 +454,10 @@ with tab2:
             else:
                 st.warning("반영할 내용을 입력해 주세요.")
 
-# 탭 3: 회차별 트리트먼트 연동 관리
+# 탭 3: 회차별 트리트먼트 연동 관리 (독립 저장 버튼 탑재)
 with tab3:
     st.subheader("🗺️ 3. 회차별 고정 트리트먼트 관리 (1단계 사건 뼈대)")
-    st.caption("각 회차를 선택하고, 해당 화의 핵심 사건 뼈대를 적어두면 영구 자동 저장되며 4번(시나리오 주사위), 5번(본문 집필)에 자동 연동됩니다.")
+    st.caption("각 회차를 선택하고, 해당 화의 핵심 사건 뼈대를 적어둔 뒤 [💾 저장] 버튼을 누르면 4번(시나리오), 5번(본문)에 영구 연동됩니다.")
     
     col_ep_sel, col_ep_add = st.columns([3, 1])
     with col_ep_sel:
@@ -473,17 +477,18 @@ with tab3:
 
     current_t_content = st.session_state.ep_treatment_dict.get(current_t_ep, "")
     val_t_content = st.text_area(
-        f"📌 [{current_t_ep}] 고정 트리트먼트 (사건 진행 뼈대 - 자동 저장됨)",
+        f"📌 [{current_t_ep}] 고정 트리트먼트 (사건 진행 뼈대)",
         value=current_t_content,
         placeholder="예:\n- 씬 1: 지혜원의 추운 겨울밤, 보육원 방 안에서 대화\n- 씬 2: 자정에 소원을 빌다 루돌프의 눈 능력을 개안함\n- 씬 3: 1조의 빚 계약서가 나타나며 경악하는 엔딩",
         height=220,
         key=f"input_treat_{current_t_ep}"
     )
-    if val_t_content != current_t_content:
+    if st.button(f"💾 [{current_t_ep}] 트리트먼트 저장", key=f"btn_save_treat_{current_t_ep}"):
         st.session_state.ep_treatment_dict[current_t_ep] = val_t_content
         save_all_data()
+        st.success(f"[{current_t_ep}] 트리트먼트가 성공적으로 저장되었습니다!")
 
-# 탭 4: 시나리오 주사위 (전개 발산)
+# 탭 4: 시나리오 주사위 (독립 저장 버튼 탑재)
 with tab4:
     st.subheader("🎲 4. 시나리오 주사위 (회차별 기발한 전개 발산)")
     st.caption("3번 탭의 고정 트리트먼트와 설정을 바탕으로, 막히는 전개를 풀어낼 다양한 씬 아이디어와 반전 시나리오를 주사위 굴리듯 생성합니다.")
@@ -550,18 +555,21 @@ with tab4:
             except Exception as e:
                 st.error(f"시나리오 생성 오류: {e}")
 
-    val_syn = st.text_area("🎲 생성된 시나리오 결과 (마음에 들면 복사해서 5번 탭 콘티에 사용)", value=st.session_state.synopsis, height=280, key="input_syn")
-    if val_syn != st.session_state.synopsis:
-        st.session_state.synopsis = val_syn
-        save_all_data()
-
-    if st.session_state.synopsis.strip():
-        if st.button("📥 이 시나리오의 핵심을 5번 탭 [3단계 콘티란]으로 즉시 보내기"):
-            st.session_state.ep_treatment_guideline = st.session_state.synopsis
+    val_syn = st.text_area("🎲 생성된 시나리오 결과", value=st.session_state.synopsis, height=280, key="input_syn")
+    
+    col_syn_s1, col_syn_s2 = st.columns(2)
+    with col_syn_s1:
+        if st.button("💾 시나리오 결과 저장", key="btn_save_syn_res"):
+            st.session_state.synopsis = val_syn
             save_all_data()
-            st.success("5번 탭 [3단계 콘티란]으로 복사되었습니다! 5번 탭에서 바로 집필하세요.")
+            st.success("시나리오 결과가 저장되었습니다!")
+    with col_syn_s2:
+        if st.button("📥 이 시나리오를 5번 탭 콘티로 보내기", key="btn_send_syn_to_ep"):
+            st.session_state.ep_treatment_guideline = val_syn
+            save_all_data()
+            st.success("5번 탭 [3단계 콘티란]으로 전송되었습니다! 5번 탭에서 바로 집필하세요.")
 
-# 탭 5: 3중 본문 집필 & 서재 저장
+# 탭 5: 3중 본문 집필 & 서재 저장 (독립 저장 버튼 탑재)
 with tab5:
     st.subheader("📖 5. 3중 본문 집필 & 실시간 편집기")
     
@@ -600,9 +608,10 @@ with tab5:
         height=140,
         key="input_treatment"
     )
-    if val_treatment != st.session_state.ep_treatment_guideline:
+    if st.button("💾 현장 콘티/초안 저장", key="btn_save_ep_guideline"):
         st.session_state.ep_treatment_guideline = val_treatment
         save_all_data()
+        st.success("콘티/초안이 안전하게 저장되었습니다!")
 
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
     ec1, ec2, ec3, ec4 = st.columns(4)
@@ -620,7 +629,7 @@ with tab5:
         if st.button("📖 3중 결합 AI 본문 집필 실행 (초안 직접 이어쓰기)", key="btn_gen_ep_content"):
             with st.spinner(f"[{st.session_state.current_ep_title}] 원안 + 트리트먼트 + 현장 초안을 결합하여 집필 중입니다..."):
                 try:
-                    user_starter_draft = st.session_state.ep_treatment_guideline.strip()
+                    user_starter_draft = val_treatment.strip()
                     current_treat_text = linked_treatment if use_e_treat_dict else ""
                     
                     ctx = build_context_prompt(
@@ -678,10 +687,12 @@ with tab5:
             st.success(f"'{st.session_state.current_ep_title}' 서재 저장 완료!")
             st.rerun()
 
-    val_ep_content = st.text_area("작성된 소설 본문 (직접 편집 가능 - 자동 저장됨)", value=st.session_state.current_ep_content, height=400, key="input_ep_content")
-    if val_ep_content != st.session_state.current_ep_content:
+    val_ep_content = st.text_area("작성된 소설 본문 (직접 편집 가능)", value=st.session_state.current_ep_content, height=400, key="input_ep_content")
+    if st.button("💾 본문 편집 내용 임시 저장", key="btn_save_ep_content_temp"):
         st.session_state.current_ep_content = val_ep_content
+        st.session_state.episode_list[st.session_state.current_ep_title] = val_ep_content
         save_all_data()
+        st.success("본문 내용이 저장되었습니다!")
     
     text_len_with_space = len(st.session_state.current_ep_content)
     text_len_without_space = len(st.session_state.current_ep_content.replace(" ", "").replace("\n", ""))
@@ -707,9 +718,10 @@ with tab5:
         )
 
     val_notes = st.text_area("💡 작가 메모 / 아이디어 수첩", value=st.session_state.notes, height=120, key="input_notes")
-    if val_notes != st.session_state.notes:
+    if st.button("💾 작가 메모 저장", key="btn_save_notes"):
         st.session_state.notes = val_notes
         save_all_data()
+        st.success("메모가 저장되었습니다!")
 
 # 탭 6: 고급 작가 엔진 도구함 (정밀 퇴고 및 윤문)
 with tab6:
@@ -849,15 +861,16 @@ with tab6:
                 st.warning("분석할 본문이 없습니다.")
         
         val_foreshadow = st.text_area(
-            "📌 추적 중인 복선 및 떡밥 목록 (수정 가능 - 자동 저장됨)", 
+            "📌 추적 중인 복선 및 떡밥 목록", 
             value=st.session_state.foreshadowing_list, 
             placeholder="예:\n- [미회수] 1화: 판게아 금고 열쇠의 행방",
             height=180,
             key="input_foreshadow"
         )
-        if val_foreshadow != st.session_state.foreshadowing_list:
+        if st.button("💾 복선 목록 저장", key="btn_save_foreshadow"):
             st.session_state.foreshadowing_list = val_foreshadow
             save_all_data()
+            st.success("복선 목록이 저장되었습니다!")
 
     with st.expander("🎭 7. 1인칭 주인공 / 관찰자 시점(POV) 전환기", expanded=False):
         st.markdown("선택한 본문이나 장면을 다른 인물의 시점으로 다시 씁니다.")
@@ -907,11 +920,12 @@ with tab6:
                 st.info("서재에 저장된 회차가 없습니다.")
                 
         val_comp = st.text_area(
-            "📌 전체 회차 압축 줄거리 (자동 저장됨)", 
+            "📌 전체 회차 압축 줄거리", 
             value=st.session_state.compressed_summaries, 
             height=200,
             key="input_comp"
         )
-        if val_comp != st.session_state.compressed_summaries:
+        if st.button("💾 압축 줄거리 저장", key="btn_save_comp_summaries"):
             st.session_state.compressed_summaries = val_comp
             save_all_data()
+            st.success("압축 줄거리가 저장되었습니다!")
