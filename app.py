@@ -67,14 +67,14 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("🎛️ AI 접근 및 표현 수준 설정")
     
-    creativity = st.slider("AI 창의성 / 자유도 (Temperature)", min_value=0.0, max_value=2.0, value=1.0, step=0.1)
+    creativity = st.slider("AI 창의성 / 자유도 (Temperature)", min_value=0.0, max_value=2.0, value=1.1, step=0.1)
     rating_level = st.selectbox(
         "표현 수위 / 연령 등급",
-        ["전체이용가 (대중적/순화)", "15세 이용가 (긴장감/현실적 묘사)", "19세 성인/하드보일드 (적나라한 심리/폭력/어두운 묘사 허용)", "노필터 다크 판타지/스릴러"]
+        ["19세 성인/하드보일드 (적나라한 심리/폭력/어두운 묘사 허용)", "노필터 다크 판타지/스릴러", "15세 이용가 (긴장감/현실적 묘사)", "전체이용가 (대중적/순화)"]
     )
     detail_style = st.selectbox(
         "문체 및 묘사 디테일",
-        ["속도감 중심 (대화/사건 위주)", "균형 잡힌 웹소설 표준", "극적 심리/감각적 고밀도 묘사", "클리프행어/도파민 극대화"]
+        ["극적 심리/감각적 고밀도 묘사", "클리프행어/도파민 극대화", "속도감 중심 (대화/사건 위주)", "균형 잡힌 웹소설 표준"]
     )
     target_length = st.select_slider(
         "생성 분량 목표",
@@ -135,7 +135,7 @@ system_prompt_addon = f"""
 - 표현 수위: {rating_level}
 - 문체 스타일: {detail_style}
 - 목표 분량: {target_length}
-- 포함된 작가 설정, 인물 관계, 복선 맥락, 지정된 회차 트리트먼트 콘티를 최우선 준수할 것.
+- 작가의 지시 키워드와 고유 설정을 최우선 준수할 것. 진부한 클리셰나 교훈적인 서술을 피하고, 날것의 감각적 묘사와 입체적인 서사를 구축할 것.
 """
 
 def generate_ai(contents_text):
@@ -212,7 +212,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🛠️ 6. 작가 전문 집필 도구 (고급 엔진)"
 ])
 
-# 탭 1: 스토리 설정
+# 탭 1: 스토리 설정 (부분 타겟팅 창작 기능 추가)
 with tab1:
     st.subheader("📌 1-1. 내가 만든 고유 스토리/세계관 설정")
     txt_story = st.file_uploader("스토리 설정 파일(.txt) 불러오기", type=["txt"], key="txt_story")
@@ -236,45 +236,59 @@ with tab1:
         save_all_data()
 
     st.markdown("---")
-    st.subheader("🌍 1-2. AI 세계관 확장 및 규칙 체계화")
-    col1, col2 = st.columns(2)
-    with col1:
-        genre = st.selectbox("장르", ["판타지", "현대판타지", "무협", "로맨스판타지", "SF", "미스터리/스릴러", "다크판타지", "기타"], key="wv_genre")
-        tone = st.text_input("분위기/톤앤매너", placeholder="예: 하드보일드, 긴장감 넘치는 추적", key="wv_tone")
-    with col2:
-        concept = st.text_area("보완할 키워드/테마", placeholder="예: 세력 간 암투, 고유 능력의 한계", key="wv_concept", height=90)
-
-    use_story_for_wv = st.checkbox("🔗 [접근 제어] 고유 스토리 원안을 기반으로 확장", value=True, key="acc_wv_story")
+    st.subheader("🌍 1-2. 세계관/스토리 창작 및 확장 엔진")
     
-    if st.button("🌍 세계관 확장 생성 실행", key="btn_gen_wv"):
-        with st.spinner("세계관을 구축 및 체계화 중입니다..."):
+    wv_gen_mode = st.radio("창작 모드 선택", ["🎯 특정 세부 설정만 집중 창작 (부분 설정)", "🌐 전체 세계관 종합 확장"], horizontal=True, key="wv_gen_mode")
+    
+    if wv_gen_mode == "🎯 특정 세부 설정만 집중 창작 (부분 설정)":
+        target_wv_topic = st.text_input("💡 집중 창작할 세부 주제", placeholder="예: 판게아 금고의 보안 규칙, 지혜원의 설립 배경, 암흑가 달란트 환전 시스템", key="target_wv_topic")
+        wv_detail_req = st.text_area("보완/지시 요구사항", placeholder="예: 쉽게 뚫리지 않는 치밀한 제약 조건을 넣고, 어두운 비밀이 얽혀있게 만들어줘.", key="wv_detail_req", height=80)
+        wv_prompt_main = f"""[★ 특정 세부 설정 집중 창작 요청]
+주제: "{target_wv_topic}"
+세부 지시: "{wv_detail_req}"
+위 특정 주제에 대해 개연성 있고 디테일한 설정을 깊이 있게 창작해줘. 뻔한 설정을 지양하고 서사의 긴장감을 높일 수 있는 구체적인 규칙과 숨겨진 이면을 작성할 것."""
+    else:
+        col1, col2 = st.columns(2)
+        with col1:
+            genre = st.selectbox("장르", ["판타지", "현대판타지", "무협", "로맨스판타지", "SF", "미스터리/스릴러", "다크판타지", "기타"], key="wv_genre")
+            tone = st.text_input("분위기/톤앤매너", placeholder="예: 하드보일드, 긴장감 넘치는 추적", key="wv_tone")
+        with col2:
+            concept = st.text_area("보완할 키워드/테마", placeholder="예: 세력 간 암투, 고유 능력의 한계", key="wv_concept", height=90)
+        wv_prompt_main = f"""[전체 세계관 종합 확장]
+장르: {genre} / 톤: {tone} / 키워드: {concept}
+세부 사회구조, 세력도, 인물 간 권력 관계, 세계관의 절대 규칙을 풍성하게 확장해줘."""
+
+    use_story_for_wv = st.checkbox("🔗 [접근 제어] 고유 스토리 원안을 기반으로 창작", value=True, key="acc_wv_story")
+    
+    if st.button("🌍 세계관/설정 생성 실행", key="btn_gen_wv"):
+        with st.spinner("설정을 정밀 구축 중입니다..."):
             try:
                 base_ctx = f"[작가의 고유 스토리 설정]\n{st.session_state.custom_story_lore}\n\n" if use_story_for_wv else ""
-                p = f"{base_ctx}[요청사항]\n장르: {genre}\n톤앤매너: {tone}\n추가 테마/키워드: {concept}\n위 내용을 바탕으로 세부 사회구조, 세력도, 인물 간 권력 관계, 세계관의 절대 규칙을 풍성하게 확장해줘."
+                p = f"{base_ctx}\n{wv_prompt_main}"
                 st.session_state.worldview = generate_ai(p)
                 save_all_data()
                 st.rerun()
             except Exception as e:
                 st.error(f"오류: {e}")
 
-    val_wv = st.text_area("확장된 세계관 설정 결과", value=st.session_state.worldview, height=220, key="input_wv")
+    val_wv = st.text_area("생성/확장된 설정 결과", value=st.session_state.worldview, height=220, key="input_wv")
     if val_wv != st.session_state.worldview:
         st.session_state.worldview = val_wv
         save_all_data()
 
-    st.markdown("#### 🎯 확장된 내용 중 일부만 내 원안(1-1)에 반영하기")
+    st.markdown("#### 🎯 생성된 내용 중 일부만 내 원안(1-1)에 반영하기")
     c_filter, c_btn = st.columns([3, 1])
     with c_filter:
-        wv_apply_target = st.text_input("원안에 반영할 특정 항목/내용 입력", placeholder="예: 판게아 금고의 작동 규칙만 반영, 비밀 결사대 규칙 반영", key="wv_apply_target")
+        wv_apply_target = st.text_input("원안에 반영할 특정 항목/내용 입력", placeholder="예: 판게아 금고의 작동 규칙만 반영, 지혜원 비밀 반영", key="wv_apply_target")
     with c_btn:
         st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
         if st.button("📥 스토리 원안에 선택 반영", key="btn_apply_wv_part"):
             if not st.session_state.worldview.strip():
-                st.warning("먼저 세계관 확장을 생성하거나 확장 결과란에 내용을 적어주세요.")
+                st.warning("먼저 설정을 생성하거나 결과란에 내용이 있어야 합니다.")
             elif wv_apply_target.strip():
                 with st.spinner("해당 항목을 추출하여 원안에 병합 중입니다..."):
                     try:
-                        extract_p = f"""[확장된 세계관 전문]:\n{st.session_state.worldview}\n\n[추출 및 정돈 요청]:\n위 내용 중에서 '{wv_apply_target}'에 해당하는 핵심 내용만 깔끔한 요약 포인트 형태로 뽑아줘."""
+                        extract_p = f"""[생성된 설정 전문]:\n{st.session_state.worldview}\n\n[추출 및 정돈 요청]:\n위 내용 중에서 '{wv_apply_target}'에 해당하는 핵심 내용만 깔끔한 요약 포인트 형태로 뽑아줘."""
                         extracted_part = generate_ai(extract_p)
                         
                         st.session_state.custom_story_lore += f"\n\n[추가 반영 설정 - {wv_apply_target}]\n{extracted_part}"
@@ -286,7 +300,7 @@ with tab1:
             else:
                 st.warning("반영할 내용을 입력해 주세요.")
 
-# 탭 2: 인물 설정
+# 탭 2: 인물 설정 (특정 인물 특정 설정 집중 창작 기능 탑재)
 with tab2:
     st.subheader("📌 2-1. 내가 만든 고유 캐릭터 원안")
     txt_char = st.file_uploader("인물 설정 파일(.txt) 불러오기", type=["txt"], key="txt_char")
@@ -310,8 +324,22 @@ with tab2:
         save_all_data()
 
     st.markdown("---")
-    st.subheader("👥 2-2. 등장인물 프로필 상세화 및 조연 확장")
-    char_desc = st.text_area("⚡ 추가/보완 요청 사항 (★최우선 반영됨)", placeholder="예: 백은조는 여자야. 20대 중반의 엄청난 미녀. 그리고 추수국 설정 보완해줘.", key="char_expand_req", height=90)
+    st.subheader("👥 2-2. 인물 프로필 및 세부 비하인드 창작 엔진")
+    
+    char_gen_mode = st.radio("인물 창작 모드 선택", ["🎯 특정 인물의 세부 비하인드/동기만 창작 (예: 경찰이 된 이유)", "👥 전체 인물 프로필 일괄 상세화"], horizontal=True, key="char_gen_mode")
+    
+    if char_gen_mode == "🎯 특정 인물의 세부 비하인드/동기만 창작 (예: 경찰이 된 이유)":
+        target_char_focus = st.text_input("💡 대상 인물 & 창작할 주제", placeholder="예: 백은조가 경찰(실종수사관)이 된 결정적 이유, 추수국의 왼쪽 뺨 흉터의 비밀", key="target_char_focus")
+        char_focus_req = st.text_area("세부 요구사항", placeholder="예: 과거 지혜원 사건과 얽힌 비극적인 가족사 연결, 냉철한 성격이 형성된 계기 포함", key="char_focus_req", height=80)
+        char_prompt_main = f"""[★ 특정 인물 세부 설정/비하인드 집중 창작]
+대상 및 주제: "{target_char_focus}"
+세부 지시: "{char_focus_req}"
+위 인물의 해당 주제에 대해 평면적인 설정을 넘어선 강렬한 서사와 감정적 결핍, 입체적인 비하인드 스토리를 창작해줘."""
+    else:
+        char_desc = st.text_area("⚡ 추가/보완 요청 사항", placeholder="예: 백은조는 여자야. 20대 중반의 엄청난 미녀. 그리고 추수국 설정 보완해줘.", key="char_expand_req", height=80)
+        char_prompt_main = f"""[전체 등장인물 상세 프로필 설계]
+요청사항: "{char_desc if char_desc.strip() else '기본 설정 상세화'}"
+주요 인물들의 외모, 성격, 심리적 결핍, 능력치 한계, 대표 대사 톤을 완성해줘."""
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -321,8 +349,8 @@ with tab2:
     with c3:
         use_wv_for_c = st.checkbox("🔗 확장 세계관 반영", value=True, key="acc_c_wv")
 
-    if st.button("👥 캐릭터 프로필 생성 및 확장", key="btn_gen_char"):
-        with st.spinner("작가의 추가 요청사항을 최우선으로 반영하여 인물 프로필을 설계 중입니다..."):
+    if st.button("👥 캐릭터 설정 생성 실행", key="btn_gen_char"):
+        with st.spinner("캐릭터 세부 서사를 설계 중입니다..."):
             try:
                 ctx = build_context_prompt(
                     use_story=use_story_for_c, 
@@ -330,16 +358,7 @@ with tab2:
                     use_char_lore=use_char_lore_for_c, 
                     use_chars=False, use_synop=False, use_plot=False, use_treatment=False, use_selected_eps=False, use_foreshadow=False, use_compressed=False
                 )
-                p = f"""[★ 최우선 필수 지침 (Override Rule)]
-작가가 입력한 아래 [추가/보완 요청 사항]은 이전 설정보다 최우선 순위입니다. 기존 설정과 충돌하더라도 아래 작가의 지시를 100% 무조건 적용하여 프로필을 작성하세요:
-👉 "{char_desc if char_desc.strip() else '기본 설정 상세화'}"
-
-[기존 참조 배경 설정]
-{ctx}
-
-[작성 요구사항]
-1. 작가의 [추가/보완 요청 사항]을 완벽히 반영할 것.
-2. 주요 인물들의 상세 프로필(이름, 성별, 나이, 외모 묘사, 성격, 심리적 결핍, 능력/특기, 대표 대사 톤)을 빠짐없이 완성할 것."""
+                p = f"""[배경 설정]\n{ctx}\n\n{char_prompt_main}"""
                 
                 st.session_state.characters = generate_ai(p)
                 save_all_data()
@@ -347,27 +366,27 @@ with tab2:
             except Exception as e:
                 st.error(f"오류: {e}")
 
-    val_chars = st.text_area("완성된 등장인물 상세 설정집", value=st.session_state.characters, height=220, key="input_chars")
+    val_chars = st.text_area("생성된 인물 설정 결과", value=st.session_state.characters, height=220, key="input_chars")
     if val_chars != st.session_state.characters:
         st.session_state.characters = val_chars
         save_all_data()
 
-    st.markdown("#### 🎯 확장된 인물 설정 중 특정 내용만 캐릭터 원안(2-1)에 반영하기")
+    st.markdown("#### 🎯 생성된 인물 설정 중 특정 내용만 캐릭터 원안(2-1)에 반영하기")
     c_cfilter, c_cbtn = st.columns([3, 1])
     with c_cfilter:
-        char_apply_target = st.text_input("원안에 반영할 특정 인물/설정 입력", placeholder="예: 백은조의 외모와 성격 적용, 추수국의 성격과 말버릇 적용", key="char_apply_target")
+        char_apply_target = st.text_input("원안에 반영할 특정 인물/설정 입력", placeholder="예: 백은조가 경찰이 된 이유 반영, 추수국의 트라우마 반영", key="char_apply_target")
     with c_cbtn:
         st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
         if st.button("📥 캐릭터 원안에 선택 반영", key="btn_apply_char_part"):
             if not st.session_state.characters.strip():
-                st.warning("먼저 인물 프로필 생성을 실행하거나 상세 설정집에 내용이 있어야 합니다.")
+                st.warning("먼저 인물 설정을 생성하거나 결과란에 내용이 있어야 합니다.")
             elif char_apply_target.strip():
                 with st.spinner("인물 설정을 추출하여 원안에 병합 중입니다..."):
                     try:
-                        extract_cp = f"""[확장된 인물 설정 전문]:\n{st.session_state.characters}\n\n[추출 요청]:\n위 내용 중 '{char_apply_target}'에 해당하는 핵심 내용만 깔끔하게 추출해줘."""
+                        extract_cp = f"""[생성된 인물 설정 전문]:\n{st.session_state.characters}\n\n[추출 요청]:\n위 내용 중 '{char_apply_target}'에 해당하는 핵심 내용만 깔끔하게 요약 추출해줘."""
                         extracted_cpart = generate_ai(extract_cp)
                         
-                        st.session_state.custom_char_lore += f"\n\n[추가 반영 프로필 - {char_apply_target}]\n{extracted_cpart}"
+                        st.session_state.custom_char_lore += f"\n\n[추가 반영 설정 - {char_apply_target}]\n{extracted_cpart}"
                         save_all_data()
                         st.success(f"'{char_apply_target}' 내용이 2-1 캐릭터 원안에 성공적으로 추가되었습니다!")
                         st.rerun()
