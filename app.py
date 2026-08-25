@@ -135,7 +135,8 @@ system_prompt_addon = f"""
 - 표현 수위: {rating_level}
 - 문체 스타일: {detail_style}
 - 목표 분량: {target_length}
-- 작가의 지시 키워드와 고유 설정을 최우선 준수할 것. 진부한 클리셰나 교훈적인 서술을 피하고, 날것의 감각적 묘사와 입체적인 서사를 구축할 것.
+- 작가가 제시한 [씬 콘티 및 가이드라인]의 사건 전개와 대사, 설정을 100% 최우선 준수할 것.
+- '장대비가 쏟아지는 밤' 같은 진부한 날씨 클리셰나 뻔한 시작을 절대 금지하고, 작가가 제시한 콘티의 첫 장면부터 곧바로 긴박하게 시작할 것.
 """
 
 def generate_ai(contents_text):
@@ -150,10 +151,10 @@ def generate_ai(contents_text):
     )
     return res.text
 
-def build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_chars=True, use_synop=True, use_plot=True, use_treatment=False, use_selected_eps=True, use_foreshadow=True, use_compressed=True):
+def build_context_prompt(use_story=True, use_wv=False, use_char_lore=True, use_chars=False, use_synop=False, use_plot=False, use_treatment=False, use_selected_eps=True, use_foreshadow=False, use_compressed=False):
     ctx = []
     if use_story and st.session_state.custom_story_lore.strip():
-        ctx.append(f"[작가 고유 스토리/세계관 설정]\n{st.session_state.custom_story_lore}")
+        ctx.append(f"[작가 고유 스토리/세계관 원안]\n{st.session_state.custom_story_lore}")
     if use_wv and st.session_state.worldview.strip():
         ctx.append(f"[확장 세계관]\n{st.session_state.worldview}")
     if use_char_lore and st.session_state.custom_char_lore.strip():
@@ -212,7 +213,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🛠️ 6. 작가 전문 집필 도구 (고급 엔진)"
 ])
 
-# 탭 1: 스토리 설정 (부분 타겟팅 창작 기능 추가)
+# 탭 1: 스토리 설정
 with tab1:
     st.subheader("📌 1-1. 내가 만든 고유 스토리/세계관 설정")
     txt_story = st.file_uploader("스토리 설정 파일(.txt) 불러오기", type=["txt"], key="txt_story")
@@ -300,7 +301,7 @@ with tab1:
             else:
                 st.warning("반영할 내용을 입력해 주세요.")
 
-# 탭 2: 인물 설정 (특정 인물 특정 설정 집중 창작 기능 탑재)
+# 탭 2: 인물 설정
 with tab2:
     st.subheader("📌 2-1. 내가 만든 고유 캐릭터 원안")
     txt_char = st.file_uploader("인물 설정 파일(.txt) 불러오기", type=["txt"], key="txt_char")
@@ -411,13 +412,13 @@ with tab3:
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
     sc1, sc2, sc3, sc4, sc5 = st.columns(5)
     with sc1:
-        use_s_story = st.checkbox("고유 스토리", value=True, key="syn_story")
+        use_s_story = st.checkbox("고유 스토리 원안", value=True, key="syn_story")
     with sc2:
-        use_s_wv = st.checkbox("확장 세계관", value=True, key="syn_wv")
+        use_s_wv = st.checkbox("확장 세계관", value=False, key="syn_wv")
     with sc3:
         use_s_char_lore = st.checkbox("캐릭터 원안", value=True, key="syn_char_lore")
     with sc4:
-        use_s_chars = st.checkbox("상세 인물집", value=True, key="syn_chars")
+        use_s_chars = st.checkbox("상세 인물집", value=False, key="syn_chars")
     with sc5:
         use_s_eps = st.checkbox("체크된 회차 글", value=(synop_mode != "전체 메인 시놉시스 (작품 전체 윤곽)"), key="syn_eps")
 
@@ -520,15 +521,15 @@ with tab4:
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
     pc1, pc2, pc3, pc4, pc5, pc6 = st.columns(6)
     with pc1:
-        use_p_story = st.checkbox("고유 스토리", value=True, key="plot_story")
+        use_p_story = st.checkbox("스토리 원안", value=True, key="plot_story")
     with pc2:
-        use_p_wv = st.checkbox("세계관", value=True, key="plot_wv")
+        use_p_wv = st.checkbox("세계관", value=False, key="plot_wv")
     with pc3:
         use_p_char = st.checkbox("캐릭터 원안", value=True, key="plot_char_lore")
     with pc4:
-        use_p_chars = st.checkbox("상세 인물집", value=True, key="plot_chars")
+        use_p_chars = st.checkbox("상세 인물집", value=False, key="plot_chars")
     with pc5:
-        use_p_syn = st.checkbox("시놉시스", value=True, key="plot_syn")
+        use_p_syn = st.checkbox("시놉시스", value=False, key="plot_syn")
     with pc6:
         use_p_eps = st.checkbox("체크된 회차 글", value=True, key="plot_eps")
 
@@ -559,7 +560,7 @@ with tab4:
         st.session_state.plot = val_plot
         save_all_data()
 
-# 탭 5: 본문 집필
+# 탭 5: 본문 집필 (원안 2종 + 이번 콘티 + 이전 회차만 직결)
 with tab5:
     st.subheader("📖 5. 에피소드 집필 & 서재 보관")
     
@@ -580,11 +581,11 @@ with tab5:
         st.session_state.current_ep_title = val_ep_title
         save_all_data()
 
-    st.markdown("📝 **이번 회차에 참고할 핵심 시나리오 & 씬 트리트먼트 콘티 (선택 사항)**")
+    st.markdown("📝 **이번 회차에 참고할 핵심 시나리오 & 씬 트리트먼트 콘티 (★최우선 반영)**")
     val_treatment = st.text_area(
-        "3, 4번 탭에서 채택한 이번 회차 시놉시스/씬 구성을 여기에 붙여넣거나 직접 메모해 두세요. (AI 본문 작성 시 최우선 반영)",
+        "이번 화에서 일어날 구체적인 장면, 대사, 초안을 여기에 적으세요. AI가 이전 설정보다 이 콘티 내용을 100% 최우선으로 본문을 작성합니다.",
         value=st.session_state.ep_treatment_guideline,
-        placeholder="예:\n- 씬 1: 폐공장에서 황대수의 흔적을 쫓는 추수국과 백은조\n- 씬 2: 함정에 빠져 독가스 살포, 추수국의 특수 능력으로 탈출\n- 씬 3: 크람푸스의 암호 쪽지를 발견하며 충격적인 결말로 종료",
+        placeholder="예:\n나이 어린 추수국이 크리스마스 이브 지혜원에서 소원을 빌다 루돌프의 눈 능력을 얻고 1조의 빚을 지게 되는 장면.",
         height=140,
         key="input_treatment"
     )
@@ -593,42 +594,48 @@ with tab5:
         save_all_data()
 
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
-    ec1, ec2, ec3, ec4, ec5, ec6, ec7, ec8 = st.columns(8)
+    ec1, ec2, ec3, ec4 = st.columns(4)
     with ec1:
-        use_e_story = st.checkbox("스토리", value=True, key="ep_story")
+        use_e_story = st.checkbox("고유 스토리 원안", value=True, key="ep_story")
     with ec2:
-        use_e_wv = st.checkbox("세계관", value=True, key="ep_wv")
+        use_e_char = st.checkbox("고유 캐릭터 원안", value=True, key="ep_char_lore")
     with ec3:
-        use_e_char = st.checkbox("인물 원안", value=True, key="ep_char_lore")
+        use_e_treat = st.checkbox("위 콘티/가이드 (최우선)", value=True, key="ep_treat")
     with ec4:
-        use_e_chars = st.checkbox("상세 인물집", value=True, key="ep_chars")
-    with ec5:
-        use_e_syn = st.checkbox("시놉시스", value=True, key="ep_syn")
-    with ec6:
-        use_e_plot = st.checkbox("플롯", value=True, key="ep_plot")
-    with ec7:
-        use_e_treat = st.checkbox("위 콘티/가이드", value=True, key="ep_treat")
-    with ec8:
-        use_e_eps = st.checkbox("체크된 회차 글", value=True, key="ep_eps")
+        use_e_eps = st.checkbox("체크된 이전 회차 본문", value=False, key="ep_eps")
 
     col_gen, col_save = st.columns([1, 1])
     with col_gen:
-        if st.button("📖 AI 본문 초안 작성"):
-            with st.spinner("웹소설 본문 집필 중..."):
+        if st.button("📖 AI 본문 초안 작성 (콘티 1순위 반영)", key="btn_gen_ep_content"):
+            with st.spinner("작가의 콘티를 최우선으로 본문을 집필 중입니다..."):
                 try:
                     ctx = build_context_prompt(
                         use_story=use_e_story, 
-                        use_wv=use_e_wv, 
+                        use_wv=False, 
                         use_char_lore=use_e_char, 
-                        use_chars=use_e_chars, 
-                        use_synop=use_e_syn, 
-                        use_plot=use_e_plot,
-                        use_treatment=use_e_treat,
+                        use_chars=False, 
+                        use_synop=False, 
+                        use_plot=False,
+                        use_treatment=False,
                         use_selected_eps=use_e_eps,
-                        use_foreshadow=True,
-                        use_compressed=True
+                        use_foreshadow=False,
+                        use_compressed=False
                     )
-                    p = f"{ctx}\n\n[이번 회차 집필 요청]: {st.session_state.current_ep_title}\n설정과 위의 '참고 시나리오 & 씬 트리트먼트 콘티'를 철저히 준수하여 1화 분량의 웹소설 본문을 완성해줘."
+                    
+                    p = f"""[★ 절대 규칙: 작가 콘티 최우선 집필 지침 (Override Rule)]
+- 작가가 아래에 제공한 [이번 회차 핵심 시나리오 & 씬 트리트먼트 콘티]는 다른 모든 설정보다 1순위 절대 규칙입니다.
+- 기존 설정집이나 과거 시놉시스에 얽매이지 말고, 아래 작가의 콘티에 적힌 사건과 대사, 상황을 그대로 살려 소설 본문으로 확장해 완성하세요.
+- 진부한 날씨 묘사(예: 장대비가 내리는 밤 등)로 시작하는 클리셰를 절대 금지합니다. 작가의 콘티 상황으로 즉시 오프닝을 열어젖히세요.
+
+[★ 이번 회차 핵심 시나리오 & 콘티 전문]:
+👉 "{st.session_state.ep_treatment_guideline if st.session_state.ep_treatment_guideline.strip() else '콘티 없음 - 기본 시작'}"
+
+[참조용 작가 원안 (인물 성격 및 세계관)]
+{ctx}
+
+[집필 요청 회차]: {st.session_state.current_ep_title}
+위 작가의 콘티를 웹소설 표준 분량의 생생하고 긴장감 넘치는 웹소설 본문 1화로 완성해줘."""
+
                     st.session_state.current_ep_content = generate_ai(p)
                     st.session_state.episode_list[st.session_state.current_ep_title] = st.session_state.current_ep_content
                     save_all_data()
@@ -688,7 +695,7 @@ with tab6:
             if target_guard_text.strip():
                 with st.spinner("설정 및 복선 정합성을 검증 중입니다..."):
                     try:
-                        ctx = build_context_prompt(use_story=True, use_wv=True, use_char_lore=True, use_chars=True, use_synop=True, use_plot=True, use_treatment=False, use_selected_eps=True, use_foreshadow=True, use_compressed=True)
+                        ctx = build_context_prompt(use_story=True, use_wv=False, use_char_lore=True, use_chars=False, use_synop=False, use_plot=False, use_treatment=False, use_selected_eps=True, use_foreshadow=True, use_compressed=True)
                         p = f"""{ctx}\n\n[검증 대상 본문]:\n{target_guard_text}\n\n위 본문이 설정과 충돌하거나 모순되는 점을 정밀 분석해줘:\n1. ⚠️ 발견된 설정 오류 및 모순점\n2. 🎭 인물 개성 및 어투 일관성 점검\n3. 💡 수정 추천 방안"""
                         report = generate_ai(p)
                         st.info(report)
@@ -751,7 +758,7 @@ with tab6:
             if target_cliff_text.strip():
                 with st.spinner("독자 몰입형 엔딩 훅을 계산 중입니다..."):
                     try:
-                        ctx = build_context_prompt(use_story=False, use_wv=False, use_char_lore=True, use_chars=True, use_synop=True, use_plot=False, use_treatment=False, use_selected_eps=False)
+                        ctx = build_context_prompt(use_story=False, use_wv=False, use_char_lore=True, use_chars=False, use_synop=False, use_plot=False, use_treatment=False, use_selected_eps=False)
                         p = f"""{ctx}\n\n[선택된 본문]:\n{target_cliff_text}\n\n위 본문의 마지막 상황에서 이어질 수 있는 3가지 유형의 '강렬한 클리프행어 결말 문단'을 작성해줘:\n- [A안: 충격/반전형]\n- [B안: 절체절명 위기형]\n- [C안: 심리/갈등 격돌형]"""
                         st.session_state.cliffhangers = generate_ai(p)
                         st.success("엔딩 분기가 생성되었습니다!")
