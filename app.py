@@ -67,7 +67,7 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("🎛️ AI 접근 및 표현 수준 설정")
     
-    creativity = st.slider("AI 창의성 / 자유도 (Temperature)", min_value=0.0, max_value=2.0, value=1.1, step=0.1)
+    creativity = st.slider("AI 창의성 / 자유도 (Temperature)", min_value=0.0, max_value=2.0, value=1.0, step=0.1)
     rating_level = st.selectbox(
         "표현 수위 / 연령 등급",
         ["19세 성인/하드보일드 (적나라한 심리/폭력/어두운 묘사 허용)", "노필터 다크 판타지/스릴러", "15세 이용가 (긴장감/현실적 묘사)", "전체이용가 (대중적/순화)"]
@@ -135,8 +135,8 @@ system_prompt_addon = f"""
 - 표현 수위: {rating_level}
 - 문체 스타일: {detail_style}
 - 목표 분량: {target_length}
-- 작가가 제시한 [씬 콘티 및 가이드라인]의 사건 전개와 대사, 설정을 100% 최우선 준수할 것.
-- '장대비가 쏟아지는 밤' 같은 진부한 날씨 클리셰나 뻔한 시작을 절대 금지하고, 작가가 제시한 콘티의 첫 장면부터 곧바로 긴박하게 시작할 것.
+- 작가의 지시와 제공된 시작 초안을 100% 최우선으로 준수하여 스토리를 이어나갈 것.
+- 뻔한 날씨 묘사(비/장대비 등)나 진부한 클리셰 도입부를 절대 독자적으로 창작하지 말 것.
 """
 
 def generate_ai(contents_text):
@@ -560,7 +560,7 @@ with tab4:
         st.session_state.plot = val_plot
         save_all_data()
 
-# 탭 5: 본문 집필 (원안 2종 + 이번 콘티 + 이전 회차만 직결)
+# 탭 5: 본문 집필 (초안 직접 이어쓰기 엔진 탑재)
 with tab5:
     st.subheader("📖 5. 에피소드 집필 & 서재 보관")
     
@@ -583,7 +583,7 @@ with tab5:
 
     st.markdown("📝 **이번 회차에 참고할 핵심 시나리오 & 씬 트리트먼트 콘티 (★최우선 반영)**")
     val_treatment = st.text_area(
-        "이번 화에서 일어날 구체적인 장면, 대사, 초안을 여기에 적으세요. AI가 이전 설정보다 이 콘티 내용을 100% 최우선으로 본문을 작성합니다.",
+        "이번 화에서 일어날 구체적인 장면, 대사, 초안을 여기에 적으세요. AI가 이 텍스트를 시작점으로 삼아 곧바로 뒷이야기를 이어서 작성합니다.",
         value=st.session_state.ep_treatment_guideline,
         placeholder="예:\n나이 어린 추수국이 크리스마스 이브 지혜원에서 소원을 빌다 루돌프의 눈 능력을 얻고 1조의 빚을 지게 되는 장면.",
         height=140,
@@ -600,15 +600,17 @@ with tab5:
     with ec2:
         use_e_char = st.checkbox("고유 캐릭터 원안", value=True, key="ep_char_lore")
     with ec3:
-        use_e_treat = st.checkbox("위 콘티/가이드 (최우선)", value=True, key="ep_treat")
+        use_e_treat = st.checkbox("위 콘티/초안 (최우선)", value=True, key="ep_treat")
     with ec4:
         use_e_eps = st.checkbox("체크된 이전 회차 본문", value=False, key="ep_eps")
 
     col_gen, col_save = st.columns([1, 1])
     with col_gen:
-        if st.button("📖 AI 본문 초안 작성 (콘티 1순위 반영)", key="btn_gen_ep_content"):
-            with st.spinner("작가의 콘티를 최우선으로 본문을 집필 중입니다..."):
+        if st.button("📖 AI 본문 초안 작성 (콘티 직접 이어쓰기)", key="btn_gen_ep_content"):
+            with st.spinner("작가의 초안을 바탕으로 곧바로 뒷이야기를 집필 중입니다..."):
                 try:
+                    user_starter_draft = st.session_state.ep_treatment_guideline.strip()
+                    
                     ctx = build_context_prompt(
                         use_story=use_e_story, 
                         use_wv=False, 
@@ -622,22 +624,32 @@ with tab5:
                         use_compressed=False
                     )
                     
-                    p = f"""[★ 절대 규칙: 작가 콘티 최우선 집필 지침 (Override Rule)]
-- 작가가 아래에 제공한 [이번 회차 핵심 시나리오 & 씬 트리트먼트 콘티]는 다른 모든 설정보다 1순위 절대 규칙입니다.
-- 기존 설정집이나 과거 시놉시스에 얽매이지 말고, 아래 작가의 콘티에 적힌 사건과 대사, 상황을 그대로 살려 소설 본문으로 확장해 완성하세요.
-- 진부한 날씨 묘사(예: 장대비가 내리는 밤 등)로 시작하는 클리셰를 절대 금지합니다. 작가의 콘티 상황으로 즉시 오프닝을 열어젖히세요.
+                    p = f"""[★ 절대 규칙: 작가의 초안 직접 이어쓰기 지침 (Override Rule)]
+1. 작가가 아래 [작가가 직접 작성한 시작 초안]을 제공했습니다.
+2. 엉뚱한 날씨 묘사(예: 비가 내렸다 등)나 다른 성인 시점의 오프닝을 새로 만들지 마십시오.
+3. 작가의 시작 초안 상황과 톤을 그대로 이어받아, 소설의 다음 장면(지혜원에서 소원을 빌고, 능력을 얻고, 1조의 빚을 지게 되는 충격적인 전개)을 곧바로 이어서 완성하세요.
 
-[★ 이번 회차 핵심 시나리오 & 콘티 전문]:
-👉 "{st.session_state.ep_treatment_guideline if st.session_state.ep_treatment_guideline.strip() else '콘티 없음 - 기본 시작'}"
+[작가가 직접 작성한 시작 초안]:
+\"\"\"
+{user_starter_draft if user_starter_draft else '1화 시작 초안'}
+\"\"\"
 
-[참조용 작가 원안 (인물 성격 및 세계관)]
+[참조용 기본 배경 설정]
 {ctx}
 
-[집필 요청 회차]: {st.session_state.current_ep_title}
-위 작가의 콘티를 웹소설 표준 분량의 생생하고 긴장감 넘치는 웹소설 본문 1화로 완성해줘."""
+[집필 회차]: {st.session_state.current_ep_title}
+위 시작 초안의 뒷부분부터 완결감 있게 이어지는 웹소설 1화 분량의 본문을 완성해줘."""
 
-                    st.session_state.current_ep_content = generate_ai(p)
-                    st.session_state.episode_list[st.session_state.current_ep_title] = st.session_state.current_ep_content
+                    ai_continuation = generate_ai(p)
+                    
+                    # 작가의 초안이 시작 부분에 누락되지 않도록 결합 보정
+                    if user_starter_draft and not ai_continuation.strip().startswith(user_starter_draft[:20]):
+                        full_content = f"{user_starter_draft}\n\n{ai_continuation}"
+                    else:
+                        full_content = ai_continuation
+                        
+                    st.session_state.current_ep_content = full_content
+                    st.session_state.episode_list[st.session_state.current_ep_title] = full_content
                     save_all_data()
                     st.rerun()
                 except Exception as e:
