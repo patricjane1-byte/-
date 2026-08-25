@@ -29,7 +29,8 @@ default_data = {
     "episode_list": {},
     "selected_episodes": [],
     "current_ep_title": "제1화",
-    "current_ep_content": ""
+    "current_ep_content": "",
+    "relay_scene_buffer": ""
 }
 
 def load_saved_data():
@@ -81,7 +82,7 @@ with st.sidebar:
         ["극적 심리/감각적 고밀도 묘사", "클리프행어/도파민 극대화", "속도감 중심 (대화/사건 위주)", "균형 잡힌 웹소설 표준"]
     )
     target_length = st.select_slider(
-        "생성 분량 목표",
+        "일괄 생성 분량 목표",
         options=["간략 요약 (~1,000자)", "단편/기본 (~2,500자)", "웹소설 1화 표준 (~4,500자)", "초장문 고밀도 (~6,000자 이상)"],
         value="웹소설 1화 표준 (~4,500자)"
     )
@@ -125,22 +126,22 @@ with st.sidebar:
 
 # 메인 화면
 st.title("✍️ 웹소설 유니버스 & 스튜디오 Pro Max")
-st.caption("🔒 모든 원안, 회차별 트리트먼트, 본문은 [💾 저장] 버튼을 누르면 안전하게 영구 저장됩니다.")
+st.caption("🔒 모든 데이터는 각 탭의 [💾 저장] 버튼을 누를 때 안정적으로 보관됩니다.")
 
 if not api_key:
     st.warning("👈 좌측 상단 화살표(>>)를 눌러 사이드바에 Gemini API Key를 입력해 주세요.")
     st.stop()
 
 client = genai.Client(api_key=api_key)
-MODEL_NAME = "gemini-3.6-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 system_prompt_addon = f"""
 [절대 준수 3중 집필 헌법]
-1. [3단계: 이번 씬 최우선 세부 명령]을 최상위 명령으로 100% 반영한다.
+1. [3단계: 이번 씬/콘티 최우선 세부 명령]을 최상위 명령으로 100% 반영한다.
 2. [2단계: 연결된 회차별 트리트먼트]의 사건 진행 뼈대를 절대 이탈하지 않는다.
 3. [1단계: 고유 원안]의 인물 설정과 세계관을 바탕으로 살을 붙인다.
 4. 진부한 날씨 묘사(비, 장대비 등)로 시작하는 클리셰를 절대 생성하지 않는다.
-5. 표현 수위: {rating_level} | 문체: {detail_style} | 분량: {target_length}
+5. 표현 수위: {rating_level} | 문체: {detail_style}
 """
 
 def generate_ai(contents_text):
@@ -211,7 +212,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "👥 2. 인물 설정 (원안/확장)", 
     "🗺️ 3. 회차별 트리트먼트 연동",
     "🎲 4. 시나리오 주사위 (전개 발산)", 
-    "📖 5. 3중 본문 집필 & 서재 저장",
+    "📖 5. 본문 집필 (씬 릴레이/일괄)",
     "🛠️ 6. 작가 전문 집필 도구 (고급 엔진)"
 ])
 
@@ -219,7 +220,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 with tab1:
     st.subheader("📌 1-1. 내가 만든 고유 스토리/세계관 설정")
     
-    with st.expander("📥 텍스트 직접 붙여넣기로 원안 업데이트 (Gemini/메모장 복붙용)", expanded=False):
+    with st.expander("📥 텍스트 직접 붙여넣기로 원안 업데이트 (복붙 퀵 패치)", expanded=False):
         paste_story_text = st.text_area("외부에서 복사한 설정 텍스트 붙여넣기", placeholder="외부 제미나이 등에서 정리한 세계관/스토리 설정을 여기에 붙여넣으세요.", height=130, key="paste_story_box")
         c_p1, c_p2 = st.columns(2)
         with c_p1:
@@ -335,7 +336,7 @@ with tab1:
 with tab2:
     st.subheader("📌 2-1. 내가 만든 고유 캐릭터 원안")
     
-    with st.expander("📥 텍스트 직접 붙여넣기로 원안 업데이트 (Gemini/메모장 복붙용)", expanded=False):
+    with st.expander("📥 텍스트 직접 붙여넣기로 원안 업데이트 (복붙 퀵 패치)", expanded=False):
         paste_char_text = st.text_area("외부에서 복사한 인물 설정 텍스트 붙여넣기", placeholder="외부 제미나이 등에서 정리한 캐릭터 프로필을 여기에 붙여넣으세요.", height=130, key="paste_char_box")
         c_cp1, c_cp2 = st.columns(2)
         with c_cp1:
@@ -457,7 +458,7 @@ with tab2:
 # 탭 3: 회차별 트리트먼트 연동 관리
 with tab3:
     st.subheader("🗺️ 3. 회차별 고정 트리트먼트 관리 (1단계 사건 뼈대)")
-    st.caption("각 회차를 선택하고, 해당 화의 핵심 사건 뼈대를 적어둔 뒤 [💾 저장] 버튼을 누르면 4번(시나리오), 5번(본문)에 영구 연동됩니다.")
+    st.caption("각 회차를 선택하고 핵심 사건 뼈대를 적어둔 뒤 [💾 저장]을 누르면 4번(시나리오), 5번(본문)에 연동됩니다.")
     
     col_ep_sel, col_ep_add = st.columns([3, 1])
     with col_ep_sel:
@@ -491,7 +492,7 @@ with tab3:
 # 탭 4: 시나리오 주사위
 with tab4:
     st.subheader("🎲 4. 시나리오 주사위 (회차별 기발한 전개 발산)")
-    st.caption("3번 탭의 고정 트리트먼트와 설정을 바탕으로, 막히는 전개를 풀어낼 다양한 씬 아이디어와 반전 시나리오를 주사위 굴리듯 생성합니다.")
+    st.caption("3번 탭의 고정 트리트먼트와 설정을 바탕으로, 막히는 전개를 풀어낼 다양한 씬 아이디어와 반전 시나리오를 생성합니다.")
     
     all_known_eps_syn = list(st.session_state.ep_treatment_dict.keys())
     c_syn_ep, c_syn_mode = st.columns([2, 2])
@@ -569,11 +570,10 @@ with tab4:
             save_all_data()
             st.success("5번 탭 [3단계 콘티란]으로 전송되었습니다! 5번 탭에서 바로 집필하세요.")
 
-# 탭 5: 3중 본문 집필 & 서재 저장 (트리트먼트 수동 불러오기 및 회차 연동 패치)
+# 탭 5: 본문 집필 (씬 릴레이 분할 집필 & 통합 일괄 집필 선택)
 with tab5:
-    st.subheader("📖 5. 3중 본문 집필 & 실시간 편집기")
+    st.subheader("📖 5. 본문 집필 스튜디오")
     
-    # 3번 탭의 트리트먼트 회차 목록을 기본으로 사용
     available_treatment_keys = list(st.session_state.ep_treatment_dict.keys())
     if not available_treatment_keys:
         available_treatment_keys = ["제1화"]
@@ -590,7 +590,7 @@ with tab5:
             else:
                 st.warning("서재에 해당 회차 저장본이 없습니다.")
 
-    # 3번 탭에서 저장된 트리트먼트 직접 선택 및 불러오기
+    # 3번 탭 트리트먼트 연동부
     st.markdown("🗺️ **[2단계 연동] 3번 탭 고정 트리트먼트 선택 및 연결**")
     c_t_load1, c_t_load2 = st.columns([3, 1])
     with c_t_load1:
@@ -608,26 +608,21 @@ with tab5:
             st.rerun()
 
     active_treatment_content = st.session_state.ep_treatment_dict.get(st.session_state.current_treatment_ep, "")
-    with st.expander(f"🔗 현재 연결된 [{st.session_state.current_treatment_ep}] 트리트먼트 내용", expanded=True):
+    with st.expander(f"🔗 현재 연결된 [{st.session_state.current_treatment_ep}] 트리트먼트 내용", expanded=False):
         if active_treatment_content.strip():
             st.info(active_treatment_content)
         else:
             st.warning("⚠️ 선택된 트리트먼트 내용이 비어있습니다. 3번 탭에서 뼈대를 작성 후 [💾 저장]해 주세요.")
 
-    # 현장 최우선 세부 명령
-    st.markdown("⚡ **[현장 최상위 명령] 이번 화 현장 콘티 & 시작 오프닝 초안 (★절대 우선)**")
-    val_treatment = st.text_area(
-        "이번 화에서 일어날 구체적인 장면, 대사, 초안을 여기에 적으세요. AI가 이 텍스트를 시작점으로 삼아 곧바로 뒷이야기를 이어서 작성합니다.",
-        value=st.session_state.ep_treatment_guideline,
-        placeholder="예:\n\"리스마스에는 나 보고 싶어서 올지도 모르잖아.\"\n\"......\"\n\"형아는 진짜 바보야.\"\n입을 삐죽 내민 연인이 이불을 뒤집어쓰고 홱 돌아누웠다...",
-        height=140,
-        key="input_treatment"
-    )
-    if st.button("💾 현장 콘티/초안 저장", key="btn_save_ep_guideline"):
-        st.session_state.ep_treatment_guideline = val_treatment
-        save_all_data()
-        st.success("콘티/초안이 안전하게 저장되었습니다!")
+    st.markdown("---")
+    
+    # 집필 모드 선택 라디오
+    write_engine_mode = st.radio("집필 방식 선택", [
+        "🔥 씬 릴레이 모드 (1,000자 단위 분할 초안 작성 - 퀄리티 극대화)",
+        "⚡ 1편 일괄 초안 모드 (~4,500자 전체 한 번에 작성)"
+    ], horizontal=True, key="write_engine_mode")
 
+    # 공통 접근 제어 체크박스
     st.markdown("**접근 여부 설정 (프롬프트 반영 항목)**")
     ec1, ec2, ec3, ec4 = st.columns(4)
     with ec1:
@@ -639,10 +634,112 @@ with tab5:
     with ec4:
         use_e_eps = st.checkbox("이전 회차 본문 연계", value=False, key="ep_eps")
 
-    col_gen, col_save = st.columns([1, 1])
-    with col_gen:
-        if st.button("📖 3중 결합 AI 본문 집필 실행 (초안 직접 이어쓰기)", key="btn_gen_ep_content"):
-            with st.spinner(f"[{st.session_state.current_ep_title}] 원안 + 트리트먼트 + 현장 초안을 결합하여 집필 중입니다..."):
+    # A. 씬 릴레이 분할 집필 모드
+    if write_engine_mode == "🔥 씬 릴레이 모드 (1,000자 단위 분할 초안 작성 - 퀄리티 극대화)":
+        st.markdown("### 🎬 씬 릴레이 작업대 (~1,000자 분할 생성)")
+        st.caption("씬 단위로 작성 지시를 넣고 AI가 1,000자 내외로 고밀도 집필하면, 검토/수정 후 아래 본문에 차곡차곡 이어붙입니다.")
+        
+        c_sc_type, c_sc_goal = st.columns([1, 2])
+        with c_sc_type:
+            scene_phase = st.selectbox("현재 작성할 씬/비트 단계", [
+                "씬 1: 도입부 (오프닝 & 상황 제시)",
+                "씬 2: 전개부 (사건 갈등 & 인물 대화)",
+                "씬 3: 절정부 (위기 고조 & 충격적 전개)",
+                "씬 4: 결말부 (엔딩 클리프행어 & 여운)",
+                "추가 씬: 브릿지/전환 구간"
+            ])
+        with c_sc_goal:
+            scene_prompt_input = st.text_area("⚡ 이번 씬 구체적 지시 / 핵심 대사 / 시작 초안", placeholder="예:\n\"형아는 진짜 바보야.\"\n연인이 삐져서 돌아눕고, 추수국이 자정에 창밖을 보며 지혜원의 소원 의식을 준비하는 장면.", height=90, key="scene_prompt_input")
+
+        if st.button("🎬 이번 씬 분할 생성 (~1,000자 정밀 렌더링)", key="btn_gen_single_scene"):
+            with st.spinner(f"[{scene_phase}] 씬을 정밀 집필 중입니다..."):
+                try:
+                    current_body = st.session_state.current_ep_content.strip()
+                    last_context_snippet = current_body[-1200:] if len(current_body) > 1200 else current_body
+                    
+                    ctx = build_context_prompt(
+                        use_story=use_e_story, 
+                        use_wv=False, 
+                        use_char_lore=use_e_char, 
+                        use_chars=False, 
+                        use_synop=False, 
+                        use_plot=False, 
+                        use_treatment=False, 
+                        use_selected_eps=use_e_eps,
+                        use_foreshadow=False,
+                        use_compressed=False
+                    )
+                    
+                    p = f"""[★ 씬 릴레이 정밀 분할 집필 요청]
+- 현재 작성 단계: {scene_phase}
+- 이번 씬 작가 핵심 지시/대사: "{scene_prompt_input if scene_prompt_input.strip() else '트리트먼트에 맞춘 전개'}"
+- 분량 목표: 웹소설 1개 씬 분량 (~1,000자 내외)
+
+[직전까지 작성된 본문 내용의 마지막 흐름 (반드시 이 뒤로 매끄럽게 이어질 것)]:
+\"\"\"
+{last_context_snippet if last_context_snippet else '(소설의 첫 씬 오프닝입니다)'}
+\"\"\"
+
+[2단계 고정 트리트먼트 뼈대]:
+\"\"\"
+{active_treatment_content if use_e_treat_dict else '트리트먼트 없음'}
+\"\"\"
+
+[1단계 기본 원안]:
+{ctx}
+
+[절대 규칙]
+1. 직전 본문 흐름에서 1초도 건너뛰지 말고 이번 씬의 대사와 심리 묘사를 고밀도로 서술하세요.
+2. 성인 시점이나 엉뚱한 날씨 클리셰(비 등)를 쓰지 마세요.
+3. 이번 씬에 해당하는 완성도 높은 웹소설 문단을 작성해줘."""
+
+                    generated_scene = generate_ai(p)
+                    st.session_state.relay_scene_buffer = generated_scene
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"씬 생성 오류: {e}")
+
+        if st.session_state.relay_scene_buffer:
+            val_scene_buf = st.text_area("✨ 생성된 씬 결과 (여기서 바로 직접 수정한 뒤 아래 버튼 클릭)", value=st.session_state.relay_scene_buffer, height=220, key="input_scene_buffer")
+            col_sc_app, col_sc_buf_save, col_sc_cls = st.columns([2, 1, 1])
+            with col_sc_app:
+                if st.button("📥 이 씬을 아래 [전체 본문] 끝에 이어붙이기", key="btn_append_scene_to_body"):
+                    if st.session_state.current_ep_content.strip():
+                        st.session_state.current_ep_content += f"\n\n{val_scene_buf.strip()}"
+                    else:
+                        st.session_state.current_ep_content = val_scene_buf.strip()
+                    st.session_state.episode_list[st.session_state.current_ep_title] = st.session_state.current_ep_content
+                    st.session_state.relay_scene_buffer = ""
+                    save_all_data()
+                    st.success("본문에 성공적으로 이어붙였습니다!")
+                    st.rerun()
+            with col_sc_buf_save:
+                if st.button("💾 씬 임시 저장", key="btn_save_scene_buf_only"):
+                    st.session_state.relay_scene_buffer = val_scene_buf
+                    save_all_data()
+                    st.success("씬 버퍼가 임시 저장되었습니다!")
+            with col_sc_cls:
+                if st.button("🗑️ 버퍼 비우기"):
+                    st.session_state.relay_scene_buffer = ""
+                    st.rerun()
+
+    # B. 1편 일괄 초안 모드
+    else:
+        st.markdown("⚡ **[현장 최상위 명령] 이번 화 현장 콘티 & 시작 오프닝 초안 (★절대 우선)**")
+        val_treatment = st.text_area(
+            "이번 화에서 일어날 구체적인 장면, 대사, 초안을 여기에 적으세요. AI가 이 텍스트를 시작점으로 삼아 곧바로 뒷이야기를 이어서 작성합니다.",
+            value=st.session_state.ep_treatment_guideline,
+            placeholder="예:\n\"리스마스에는 나 보고 싶어서 올지도 모르잖아.\"\n\"......\"\n\"형아는 진짜 바보야.\"\n입을 삐죽 내민 연인이 이불을 뒤집어쓰고 홱 돌아누웠다...",
+            height=140,
+            key="input_treatment"
+        )
+        if st.button("💾 현장 콘티/초안 저장", key="btn_save_ep_guideline"):
+            st.session_state.ep_treatment_guideline = val_treatment
+            save_all_data()
+            st.success("콘티/초안이 안전하게 저장되었습니다!")
+
+        if st.button("📖 3중 결합 AI 본문 1회차 일괄 집필 실행 (~4,500자)", key="btn_gen_ep_content"):
+            with st.spinner(f"[{st.session_state.current_ep_title}] 원안 + 트리트먼트 + 현장 초안을 결합하여 일괄 집필 중입니다..."):
                 try:
                     user_starter_draft = val_treatment.strip()
                     current_treat_text = active_treatment_content if use_e_treat_dict else ""
@@ -654,7 +751,7 @@ with tab5:
                         use_chars=False, 
                         use_synop=False, 
                         use_plot=False, 
-                        use_treatment=False,
+                        use_treatment=False, 
                         use_selected_eps=use_e_eps,
                         use_foreshadow=False,
                         use_compressed=False
@@ -682,7 +779,6 @@ with tab5:
 
                     ai_continuation = generate_ai(p)
                     
-                    # 작가의 초안이 맨 앞에 보존되도록 결합
                     if user_starter_draft:
                         full_content = f"{user_starter_draft}\n\n{ai_continuation}"
                     else:
@@ -695,19 +791,24 @@ with tab5:
                 except Exception as e:
                     st.error(f"오류: {e}")
 
-    with col_save:
-        if st.button("💾 현재 수정한 내용을 서재에 저장/업데이트"):
-            st.session_state.episode_list[st.session_state.current_ep_title] = st.session_state.current_ep_content
+    st.markdown("---")
+    st.subheader(f"📄 [{st.session_state.current_ep_title}] 전체 소설 본문 (실시간 편집)")
+    
+    val_ep_content = st.text_area("작성된 소설 본문", value=st.session_state.current_ep_content, height=450, key="input_ep_content")
+    
+    col_save_b1, col_save_b2 = st.columns([1, 1])
+    with col_save_b1:
+        if st.button("💾 본문 편집 내용 임시 저장", key="btn_save_ep_content_temp"):
+            st.session_state.current_ep_content = val_ep_content
+            st.session_state.episode_list[st.session_state.current_ep_title] = val_ep_content
             save_all_data()
-            st.success(f"'{st.session_state.current_ep_title}' 서재 저장 완료!")
+            st.success("본문 내용이 저장되었습니다!")
+    with col_save_b2:
+        if st.button("📚 최종 완성본으로 서재에 보관/확정", key="btn_save_to_library_final"):
+            st.session_state.episode_list[st.session_state.current_ep_title] = val_ep_content
+            save_all_data()
+            st.success(f"'{st.session_state.current_ep_title}' 서재 보관 확정 완료!")
             st.rerun()
-
-    val_ep_content = st.text_area("작성된 소설 본문 (직접 편집 가능)", value=st.session_state.current_ep_content, height=400, key="input_ep_content")
-    if st.button("💾 본문 편집 내용 임시 저장", key="btn_save_ep_content_temp"):
-        st.session_state.current_ep_content = val_ep_content
-        st.session_state.episode_list[st.session_state.current_ep_title] = val_ep_content
-        save_all_data()
-        st.success("본문 내용이 저장되었습니다!")
     
     text_len_with_space = len(st.session_state.current_ep_content)
     text_len_without_space = len(st.session_state.current_ep_content.replace(" ", "").replace("\n", ""))
@@ -743,7 +844,7 @@ with tab6:
     st.subheader("🛠️ 작가 전문 집필 & 분석 도구함 Pro")
     
     with st.expander("🎯 1. 문단 정밀 퇴고 및 윤문 도구 (Surgical Rewriter)", expanded=True):
-        st.markdown("5번 탭에서 작성된 본문이나 고치고 싶은 특정 문단을 선택해 **프로 작가 수준으로 즉시 윤문**합니다.")
+        st.markdown("5번 탭 본문이나 특정 문단을 선택해 **프로 작가 수준으로 정밀 윤문**합니다.")
         target_rewrite_text = select_target_text("rewrite")
         rewrite_goal = st.selectbox("윤문 방향", [
             "대사를 더 날카롭고 매력적인 톤으로 변경",
@@ -801,7 +902,7 @@ with tab6:
                 st.success("5번 탭 본문으로 적용되었습니다!")
 
     with st.expander("🔍 3. 설정 오류 & 붕괴 탐지기 (Continuity Guard)", expanded=False):
-        st.markdown("선택한 본문과 **[원안 설정집 + 이전 회차]**를 비교하여 인물 성격 오류, 모순, 시간대 불일치를 정밀 검증합니다.")
+        st.markdown("선택한 본문과 **[원안 설정집 + 이전 회차]**를 비교하여 인물 성격 오류, 모순, 시간대 불일치를 검증합니다.")
         target_guard_text = select_target_text("guard")
         
         if st.button("🔍 선택된 본문 설정 오류 검사"):
@@ -918,7 +1019,7 @@ with tab6:
                 st.success("5번 탭 본문으로 성공적으로 가져왔습니다!")
 
     with st.expander("🧠 8. 전체 회차 스마트 3줄 압축기 (Long-term Memory Compressor)", expanded=False):
-        st.markdown("회차가 많아질 때 각 화의 핵심 사건을 3줄로 자동 압축하여 AI의 장기 기억 저장소에 보관합니다.")
+        st.markdown("회차가 많아질 때 각 화의 핵심 사건을 3줄로 자동 압축하여 AI 장기 기억 저장소에 보관합니다.")
         
         if st.button("🧠 서재 전체 회차 3줄 핵심 요약 압축 실행"):
             if st.session_state.episode_list:
