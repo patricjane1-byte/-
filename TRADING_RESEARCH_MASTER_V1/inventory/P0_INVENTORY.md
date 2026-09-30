@@ -37,8 +37,9 @@ Execution brief used: user message body dated 2026-09-30 (full module checklist)
 | M5 HIGHLOCK H0/H1 | NOT_TESTED / NOT_LOCATED | Needs KR minute + next official open |
 | M6 Session exits | NOT_TESTED / NOT_LOCATED | Needs session calendars + fills |
 | M7 BTC public 4 | **RUN** | Fetch strategies + public BTC sample + reproduce |
+| M_US_HIKI_PREMARKET_OPEN | **SPEC_READY / NOT_TESTED** | Separate axis from Gap-and-Go; inputs NOT_LOCATED on this VM |
 | Hummingbot MM | DEFERRED | Needs book/queue/inventory — separate study |
-| M8 Report | PENDING | After runnable modules |
+| M8 Report | UPDATED | FINAL_REPORT + premkt-open note |
 
 ## Rules preserved
 
