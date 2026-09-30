@@ -1,0 +1,116 @@
+{
+  "flags": {
+    "ADOPTED": "NO",
+    "LIVE_ORDER_ENABLED": "NO",
+    "PRODUCTION_CHANGE_ALLOWED": "NO"
+  },
+  "data": {
+    "1m": "/workspace/TRADING_RESEARCH_MASTER_V1/data/btc/BTCUSDT_1m_binance_vision_public.csv.gz",
+    "5m": "/workspace/TRADING_RESEARCH_MASTER_V1/data/btc/BTCUSDT_5m_binance_vision_public.csv.gz",
+    "sha256_1m": "5a0b971073be5f44f0108614b6d882baf1368507798bd87fd1acc7473cf4e102",
+    "sha256_5m": "b6ce4417b39a90b7f442c042c33bc384e1641e4b0f259c512fa37f34b08c2aa1",
+    "start_1m": "2026-04-03 16:27:00+00:00",
+    "end_1m": "2026-09-30 16:26:00+00:00",
+    "bars_1m": 259200,
+    "bars_5m": 51840
+  },
+  "engine_notes": [
+    "Entry at next bar open after signal close.",
+    "ROI/SL on bar high/low; same-bar conflict -> stoploss first (flagged).",
+    "Exit signal fills next open.",
+    "max_open_trades=1; no leverage; spot long only.",
+    "Indicator libs: pandas ewm/rolling approximations of TA-Lib; not bit-identical to Freqtrade/TA-Lib.",
+    "Fee 0.0005/side is ASSUMPTION for comparison, not account fee.",
+    "NOT an adoption recommendation."
+  ],
+  "strategies": {
+    "BinHV45": {
+      "n": 0,
+      "mean_net": null,
+      "median_net": null,
+      "winrate": null,
+      "sum_net": null,
+      "max_dd_equity": null,
+      "mean_hold_bars": null,
+      "reasons": {},
+      "same_bar_conflicts": 0,
+      "timeframe": "1m",
+      "minimal_roi": 0.0125,
+      "stoploss": -0.05,
+      "entry_signals": 0,
+      "exit_signals": 0,
+      "ledger": "/workspace/TRADING_RESEARCH_MASTER_V1/ledgers/M7_BinHV45_trades.csv",
+      "ledger_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    "ClucMay72018": {
+      "n": 1,
+      "mean_net": 0.008990504747626415,
+      "median_net": 0.008990504747626415,
+      "winrate": 1.0,
+      "sum_net_compound_minus1": 0.008990504747626415,
+      "max_dd_equity": 0.0,
+      "mean_hold_bars": 2.0,
+      "worst_trade": 0.008990504747626415,
+      "best_trade": 0.008990504747626415,
+      "reasons": {
+        "roi": 1
+      },
+      "same_bar_conflicts": 0,
+      "fee_side_assumption": 0.0005,
+      "timeframe": "5m",
+      "minimal_roi": 0.01,
+      "stoploss": -0.05,
+      "entry_signals": 2,
+      "exit_signals": 26220,
+      "ledger": "/workspace/TRADING_RESEARCH_MASTER_V1/ledgers/M7_ClucMay72018_trades.csv",
+      "ledger_sha256": "30932c40eeebddc818c66924788f08ae9ea7f75d8b9433d567785aa42ebbf3d1"
+    },
+    "Scalp": {
+      "n": 2855,
+      "mean_net": -0.000924237358336207,
+      "median_net": -0.0008063547134571358,
+      "winrate": 0.10683012259194395,
+      "sum_net_compound_minus1": -0.9287859271988087,
+      "max_dd_equity": -0.9287516359822379,
+      "mean_hold_bars": 5.4462346760070055,
+      "worst_trade": -0.016138088549468743,
+      "best_trade": 0.006130647140172085,
+      "reasons": {
+        "exit_signal": 2855
+      },
+      "same_bar_conflicts": 0,
+      "fee_side_assumption": 0.0005,
+      "timeframe": "1m",
+      "minimal_roi": 0.01,
+      "stoploss": -0.04,
+      "entry_signals": 3862,
+      "exit_signals": 99377,
+      "ledger": "/workspace/TRADING_RESEARCH_MASTER_V1/ledgers/M7_Scalp_trades.csv",
+      "ledger_sha256": "c7a68a43163fe2f62c150346a7edae7bd9a9cbb8fc1fbe506c680b1bfc9f73ff"
+    },
+    "ReinforcedSmoothScalp": {
+      "n": 155,
+      "mean_net": -0.000165254211344905,
+      "median_net": -0.0002379298961050491,
+      "winrate": 0.41935483870967744,
+      "sum_net_compound_minus1": -0.02630292883670915,
+      "max_dd_equity": -0.07112083537493685,
+      "mean_hold_bars": 74.93548387096774,
+      "worst_trade": -0.010113785770432648,
+      "best_trade": 0.01898050974512744,
+      "reasons": {
+        "exit_signal": 154,
+        "roi": 1
+      },
+      "same_bar_conflicts": 0,
+      "fee_side_assumption": 0.0005,
+      "timeframe": "1m",
+      "minimal_roi": 0.02,
+      "stoploss": -0.1,
+      "entry_signals": 205,
+      "exit_signals": 6071,
+      "ledger": "/workspace/TRADING_RESEARCH_MASTER_V1/ledgers/M7_ReinforcedSmoothScalp_trades.csv",
+      "ledger_sha256": "a0f0b13b57d785fd8269d1bdd0a17b7248cb07a2c6770015beaa30c7553c387a"
+    }
+  }
+}

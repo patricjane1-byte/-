@@ -1,0 +1,16 @@
+{
+  "source": "https://data-api.binance.vision/api/v3/klines",
+  "symbol": "BTCUSDT",
+  "days": 180,
+  "bars_1m": 259200,
+  "bars_5m": 51840,
+  "start_1m_ms": 1775233620000,
+  "end_1m_ms": 1790785560000,
+  "sha256_1m": "559dcfcf3c6c216fbcabe4c2cd7af1f7411a27004b9493cb2debc36964b4d913",
+  "sha256_5m": "3e97613242628cd444eee2e2ffca7b740bfbf6068ee4356af7a6eb2234d1fa6e",
+  "disclaimer": "RESEARCH_SAMPLE; fee separate ASSUMPTION",
+  "stored_as": "gzip",
+  "sha256_1m_gz": "5a0b971073be5f44f0108614b6d882baf1368507798bd87fd1acc7473cf4e102",
+  "sha256_5m_gz": "b6ce4417b39a90b7f442c042c33bc384e1641e4b0f259c512fa37f34b08c2aa1",
+  "note_reload": "gunzip then run scripts/m7_btc_public_backtest.py; or re-fetch via scripts/fetch_btc_klines.py"
+}
