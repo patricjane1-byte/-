@@ -1,0 +1,5 @@
+BinHV45 {"n": 0, "mean_net": null, "winrate": null, "max_dd_equity": null, "reasons": {}}
+ClucMay72018 {"n": 1, "mean_net": 0.008990504747626415, "winrate": 1.0, "max_dd_equity": 0.0, "reasons": {"roi": 1}}
+Scalp {"n": 2855, "mean_net": -0.000924237358336207, "winrate": 0.10683012259194395, "max_dd_equity": -0.9287516359822379, "reasons": {"exit_signal": 2855}}
+ReinforcedSmoothScalp {"n": 155, "mean_net": -0.000165254211344905, "winrate": 0.41935483870967744, "max_dd_equity": -0.07112083537493685, "reasons": {"exit_signal": 154, "roi": 1}}
+Wrote /workspace/TRADING_RESEARCH_MASTER_V1/reports/M7_BTC_PUBLIC_SUMMARY.json

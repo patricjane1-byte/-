@@ -1,0 +1,2 @@
+strategy,entry_time,exit_time,entry_price,exit_price,reason,hold_bars,ret_gross,ret_net,same_bar_conflict
+ClucMay72018,2026-06-25 13:55:00+00:00,2026-06-25 14:05:00+00:00,58807.99,59396.069899999995,roi,2,0.010000000000000009,0.008990504747626415,False

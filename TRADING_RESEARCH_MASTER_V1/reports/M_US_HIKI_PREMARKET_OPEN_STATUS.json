@@ -1,0 +1,21 @@
+{
+  "module": "US_HI-KI_PREMARKET_OPEN_CAPTURE",
+  "state": "SPEC_READY_NOT_TESTED",
+  "reason": "REQUIRED_INPUTS_NOT_LOCATED",
+  "flags": {
+    "ADOPTED": "NO",
+    "LIVE_ORDER_ENABLED": "NO",
+    "PRODUCTION_CHANGE_ALLOWED": "NO"
+  },
+  "inputs": {
+    "found": {},
+    "missing_required": {
+      "candidates": "/workspace/TRADING_RESEARCH_MASTER_V1/data/us_hiki_premarket_open/hiki_prev_day_candidates.csv",
+      "premarket": "/workspace/TRADING_RESEARCH_MASTER_V1/data/us_hiki_premarket_open/us_premarket_1m.csv",
+      "official_open": "/workspace/TRADING_RESEARCH_MASTER_V1/data/us_hiki_premarket_open/us_official_open.csv"
+    },
+    "optional_found": {}
+  },
+  "spec": "/workspace/TRADING_RESEARCH_MASTER_V1/specs/M_US_HIKI_PREMARKET_OPEN_CAPTURE_SPEC.md",
+  "note": "Not a negative-PnL failure. Place CSVs under data/us_hiki_premarket_open/ and re-run."
+}

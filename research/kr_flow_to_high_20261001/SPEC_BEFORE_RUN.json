@@ -1,0 +1,84 @@
+{
+  "research_name": "KR FLOW TO INTRADAY HIGH — 기관·외국인 수급 지속의 추가 예측력",
+  "created_at_utc": "2026-10-01T01:29:11.315812+00:00",
+  "created_at_kst_note": "2026-10-01 KST (authoring date from brief)",
+  "ADOPTED": "NO",
+  "LIVE_ORDER_ENABLED": "NO",
+  "PRODUCTION_CHANGE_ALLOWED": "NO",
+  "question": "Do point-in-time observable institutional/foreign flow persistence improve hit-rate and after-cost PnL vs identical price signal P alone?",
+  "not_assumed": [
+    "selling exactly at the day's high",
+    "day high used only for evaluation labels",
+    "daily settled investor flow as intraday available",
+    "aggressive buy volume as investor net buy"
+  ],
+  "price_rule_P": {
+    "bars": "completed non-interpolated 5m bars from KRX continuous-session observed 1m bars (5 positive-volume 1m bars each)",
+    "pattern": "B.low>A.low AND B.close<A.close AND C.close>max(A.high,B.high)",
+    "trigger_time": "only after C is complete and received",
+    "no_signal_before": "first 15 minutes of continuous session",
+    "signal_deadline_kst": "14:00",
+    "population": "first P event per symbol-date; do not replace with later successful P after flow filter drop"
+  },
+  "flow_rule": {
+    "N0_N1_N2": "latest three distinct same-day provisional investor aggregates available at signal time",
+    "foreign_persist_F": "N2>0 and N1-N0>0 and N2-N1>0 (qty diffs across distinct rounds)",
+    "institution_persist_I": "same as F on institution series",
+    "age_gt_90min": "UNKNOWN in primary analysis (pre-fixed, not optimized); report excluded count",
+    "missing_vs_zero": "missing is UNKNOWN, not 0 or net sell",
+    "no_cross_day_ffill": true,
+    "no_future_interpolate": true,
+    "program_and_broker_window": "auxiliary only; never summed into one score with F/I"
+  },
+  "comparisons": [
+    "P",
+    "P+F",
+    "P+I",
+    "P+F+I"
+  ],
+  "primary_flow_comparison": "P+F+I vs P on flow-observable common population AND report full-P population separately",
+  "entry_eval": {
+    "preferred": "first valid ask after signal using quote+receive times; log VI/halt/limit/unfilled",
+    "proxy": "next exact 1m open as PRICE_PROXY if only minutes; never fill gap with signal close",
+    "primary_outcome": "within 30m, +3% target before -2% stop",
+    "no_hit": "neither barrier — report separately; keep in success-probability denominator",
+    "same_bar_both_barriers": "report ambiguity rate; primary PnL stop-first; aux success bounds lo/hi",
+    "gap_through_stop": "use observable price; do not clamp loss to -2%",
+    "aux_eval": [
+      "10/30/60m net",
+      "MFE",
+      "MAE",
+      "30m mark-to-market",
+      "rebreak of day-high-so-far",
+      "time to residual high"
+    ],
+    "mfe_not_realized_pnl": true
+  },
+  "costs_assumptions_for_sensitivity": {
+    "roundtrip_total_friction_pct": [
+      0.1,
+      0.2,
+      0.3,
+      0.5
+    ],
+    "label": "ASSUMPTION_SENSITIVITY — not claimed as verified live account costs unless project evidence found",
+    "no_double_count_spread_if_already_in_quotes": true
+  },
+  "statistics": {
+    "date_block_bootstrap_95": true,
+    "stability_split": "first 70% / last 30% by date — diagnostic only; no re-tune on back",
+    "not_independent_oos_if_dates_already_used": true,
+    "report_concentration": true,
+    "do_not_cherry_pick_best_of_candidates": true
+  },
+  "blocked_if_no_pit_flow": "DATA_STATUS=BLOCKED_MISSING_POINT_IN_TIME_FLOW",
+  "do_not_modify": [
+    "MAIN-H1-RP1-ANTC1-20260922",
+    "HI-KI selection formula",
+    "ops order/auth/collector",
+    "systemd",
+    "existing RAW",
+    "existing OOS_SPEC",
+    "prior research results"
+  ]
+}

@@ -1,0 +1,77 @@
+당시 수급 자료 또는 유효 표본이 부족하여 판정할 수 없다.
+
+연구명: KR FLOW TO INTRADAY HIGH — 기관·외국인 수급 지속의 추가 예측력
+작성일: 2026-10-01 KST (실행: Cloud Agent VM)
+ADOPTED=NO / LIVE_ORDER_ENABLED=NO / PRODUCTION_CHANGE_ALLOWED=NO
+
+================================================================================
+상태 분리
+================================================================================
+계획 작성: DONE (SPEC_BEFORE_RUN.json 고정, sha256=028ba4a259867dc87e587e9cfc32e44fff9921ebc0b7625f28ef3804d04f6b04)
+코드 작성: DONE (code/run_kr_flow_to_high.py, logger_candidate/*)
+백테스트 실행: NOT_RUN — DATA_STATUS=BLOCKED_MISSING_POINT_IN_TIME_FLOW
+유효성 검증: NOT_APPLICABLE (수급 PIT 표본 없음)
+채택: NO
+배포: NO (서비스 설치/재시작 없음)
+
+================================================================================
+자료 전수 확인 요약
+================================================================================
+이 Cloud 작업공간(github.com/patricjane1-byte/- 웹소설 레포)과 마운트/PC worker에는
+다음이 없었다 (NOT_LOCATED_ON_THIS_VM). 제공자 API가 존재하지 않는다는 뜻이 아니다.
+
+A 감시 명단+생성시각 — 없음
+B 체결·호가/검증 1분봉 — HI_KI_1MIN_60D_ALL.csv / TOP20 RAW tar.gz 없음
+C 기관·외국인 장중 가집계 PIT — 없음 (핵심 차단)
+D 프로그램 매매 시계열 — 없음
+E 거래원/외국계 창구 — 없음
+F 일별 확정 수급 — 없음 (있어도 장중 대체 금지)
+
+브리프에 적힌 참고 사실(HI_KI 1분 헤더에 수급 컬럼 없음; TOP20 RAW SHA256=
+c692633779a6bb510702fe5daa73d7b18111e31c98752e5c48a7850ba36c8f73 멤버가 TRADE/BOOK/MANIFEST뿐;
+FVG_OB 250D 단절 감사; 60D∩250D 중복)는 로컬 바이트로 재검증하지 못했고,
+다른 서버/9·22–23 묶음 부재 증명으로 확장하지 않는다.
+
+일반 공격적 매수체결량 ≠ 기관·외국인 순매수.
+일봉 확정 수급으로 장중 수급을 채우지 않았다.
+PRICE_ONLY_PILOT도 1분봉이 이 VM에 없어 실행하지 않았다 (실행했더라도 수급 효과 검증으로 포장하지 않음).
+
+================================================================================
+사양 (결과 보기 전 고정)
+================================================================================
+가격 P: 완료된 5분봉 A,B,C — B.low>A.low, B.close<A.close, C.close>max(A.high,B.high);
+관측 15분 이후~14:00 KST; 종목·날짜 첫 P만.
+수급: 당일 가집계 서로 다른 3회 N0,N1,N2; F/I 지속; age>90분 UNKNOWN.
+비교: P / P+F / P+I / P+F+I(주비교). 프로그램·창구는 합산 점수화 금지.
+평가: +3%/-2%/30분; no_hit 분모 유지; 동일봉 양장벽 모호 비율; PRICE_PROXY 표시.
+비용: 왕복 마찰 가정 0.10/0.20/0.30/0.50% — 실계좌 비용 미확인 시 가정으로만 표기.
+
+================================================================================
+산출물
+================================================================================
+00_DATA_INVENTORY.csv
+01_TIME_AND_QUALITY_AUDIT.txt
+SPEC_BEFORE_RUN.json (+ SPEC_BEFORE_RUN.sha256.json)
+DATA_GAPS.csv
+SIGNAL_LEDGER.csv (헤더만 — 미실행)
+FLOW_AVAILABILITY.csv (BLOCKED)
+MODEL_COMPARISON.csv (NOT_RUN 행)
+DAILY_RESULTS.csv (빈 헤더)
+code/run_kr_flow_to_high.py
+logger_candidate/pit_flow_logger_design.md
+logger_candidate/pit_flow_logger_stub.py
+logs/run_status.json
+
+================================================================================
+재실행 명령 (데이터 마운트 후)
+================================================================================
+# read-only로 아래 파일을 research/kr_flow_to_high_20261001/data_mount/ 에 둔다
+#   watchlist.csv | HI_KI_1MIN_60D_ALL.csv | investor_trend_estimate_pit.csv
+# PIT 수급 CSV 필수 컬럼 예:
+#   code,available_at,round_id,revision,foreign_net_qty,inst_net_qty,session_date
+
+python3 research/kr_flow_to_high_20261001/code/run_kr_flow_to_high.py \
+  --data-dir research/kr_flow_to_high_20261001/data_mount
+
+MAIN-H1 / HI-KI 선정식 / 주문·인증·수집기 / systemd / RAW / OOS_SPEC 미변경.
+비밀키·계좌·토큰 미출력.

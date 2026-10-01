@@ -1,0 +1,14 @@
+asset_id,category,sought_description,located_path,exists,sha256,size_bytes,columns_or_members,date_range,n_symbols,n_rows,source,market_scope,units,first_ts,last_ts,missing_notes,status
+A,watchlist,사전 선정 국내 감시 명단+생성시각/기준일,,False,,,,,, ,,,, ,,,NOT_LOCATED_ON_THIS_VM
+B1,price,HI_KI_1MIN_60D_ALL.csv (reference header known from brief),,False,,,"brief_header:date,time,code,open,high,low,close,volume,cum_turnover,rank,hiki",,,,,,KRX_assumed_from_brief,,NO_FLOW_COLUMNS_PER_BRIEF;FILE_NOT_ON_THIS_VM,NOT_LOCATED_ON_THIS_VM
+B2,price_raw,HI_KI_TOP20_RAW_20260921.tar.gz TRADE/BOOK/MANIFEST,,False,c692633779a6bb510702fe5daa73d7b18111e31c98752e5c48a7850ba36c8f73,,"brief:TRADE,BOOK,MANIFEST only; no investor/program/broker flow cols",,,,,, ,,,REF_HASH_FROM_BRIEF_NOT_REDOWNLOADED_HERE;NO_INVESTOR_FLOW,NOT_LOCATED_ON_THIS_VM
+B3,price_audit_report,FVG_OB_RESEARCH_REPORT_20260930.md,,False,,,,,, ,,,, ,,,"BRIEF:250D discontinuity audit 1988/4760; not this strategy result; 60D overlaps 250D",NOT_LOCATED_ON_THIS_VM
+C,flow_investor_intraday,기관·외국인 장중 가집계 원응답/회차/누적 매수·매도·순매수,,False,,,,,, ,,,, ,,,NOT_LOCATED_ON_THIS_VM
+D,flow_program,종목별 프로그램 매매 시계열,,False,,,,,, ,,,, ,,,NOT_LOCATED_ON_THIS_VM
+E,flow_broker_window,거래원/외국계 창구 시계열,,False,,,,,, ,,,, ,,,NOT_LOCATED_ON_THIS_VM
+F,flow_daily_settled,일별 확정 투자자 수급 (전일 보조/사후 라벨만),,False,,,,,, ,,,, ,,,NOT_LOCATED_ON_THIS_VM
+G,master_text,CURSOR_SCALP_CLOSE_MASTER_V1.txt,,False,,,,,, ,,,, ,,,"EXISTS_ELSEWHERE_PER_BRIEF;INSTRUCTION≠RAW_COLLECTION_PROOF;NOT_ON_THIS_VM",NOT_LOCATED_ON_THIS_VM
+H,agents,AGENTS.md / project ops guidance,,False,,,,,, ,,,, ,,,NOT_LOCATED_ON_THIS_VM
+I,ops_protected,MAIN-H1-RP1-ANTC1-20260922 / systemd / RAW / OOS_SPEC,,False,,,,,, ,,,, ,,,NOT_PRESENT_NOT_MODIFIED
+J,cloud_repo,github.com/patricjane1-byte/- connected workspace,,True,n/a,n/a,web-novel Streamlit only,,,,,, ,,,NO_MARKET_RAW_IN_CONNECTED_REPO,LOCATED_WRONG_CONTENT
+K,pc_worker,cursor self-hosted worker,,False,,,,,, ,,,, ,,,NOT_CONNECTED

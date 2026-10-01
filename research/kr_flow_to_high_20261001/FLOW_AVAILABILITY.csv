@@ -1,0 +1,5 @@
+status,detail
+BLOCKED_MISSING_POINT_IN_TIME_FLOW,investor intraday point-in-time flow CSV not found under data_dir
+watchlist,None
+bars_1m,None
+flow_investor,None

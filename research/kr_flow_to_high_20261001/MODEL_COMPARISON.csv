@@ -1,0 +1,5 @@
+model,n,status,reason
+P,,NOT_RUN,investor intraday point-in-time flow CSV not found under data_dir
+P+F,,NOT_RUN,investor intraday point-in-time flow CSV not found under data_dir
+P+I,,NOT_RUN,investor intraday point-in-time flow CSV not found under data_dir
+P+F+I,,NOT_RUN,BLOCKED_MISSING_POINT_IN_TIME_FLOW
