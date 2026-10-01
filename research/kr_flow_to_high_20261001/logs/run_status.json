@@ -1,0 +1,22 @@
+{
+  "DATA_STATUS": "BLOCKED_MISSING_POINT_IN_TIME_FLOW",
+  "reason": "investor intraday point-in-time flow CSV not found under data_dir",
+  "paths": {
+    "watchlist": null,
+    "bars_1m": null,
+    "flow_investor": null,
+    "flow_program": null,
+    "flow_window": null
+  },
+  "spec_sha256": "028ba4a259867dc87e587e9cfc32e44fff9921ebc0b7625f28ef3804d04f6b04",
+  "inputs_hash": {},
+  "ADOPTED": "NO",
+  "LIVE_ORDER_ENABLED": "NO",
+  "planning": "DONE",
+  "code": "DONE",
+  "backtest_execution": "NOT_RUN_BLOCKED",
+  "validation": "NOT_APPLICABLE_NO_FLOW",
+  "adoption": "NO",
+  "deploy": "NO",
+  "finished_at_utc": "2026-10-01T01:31:00.901677+00:00"
+}

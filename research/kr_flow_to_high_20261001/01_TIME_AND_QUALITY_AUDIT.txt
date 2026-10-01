@@ -1,0 +1,47 @@
+KR FLOW TO INTRADAY HIGH — TIME AND QUALITY AUDIT
+Written: 2026-10-01 (UTC run on Cloud Agent VM)
+ADOPTED=NO LIVE_ORDER_ENABLED=NO
+
+1) Search method
+- Full-filesystem name search for HI_KI_1MIN_60D_ALL.csv, HI_KI_TOP20_RAW_20260921.tar.gz,
+  FVG_OB_RESEARCH_REPORT_20260930.md, CURSOR_SCALP_CLOSE_MASTER_V1.txt, AGENTS.md,
+  investor/program/broker flow artifacts.
+- Connected git repo listing via gh API (web-novel files only).
+- cursor-cloud list-self-hosted-workers → empty.
+- Filename search alone is insufficient; schema/sample could not be read because files are absent.
+
+2) Distinction: not found vs provider does not provide
+- NOT_LOCATED_ON_THIS_VM: files/paths are not present in the connected Cloud workspace or mounts.
+- This is NOT a claim that Korea Investment / exchange APIs never provide investor_trend_estimate,
+  program trading, or broker-window series. Official endpoints exist (see brief URLs) but are not
+  wired, authenticated, or archived here. No secrets were used or printed.
+- REF_HASH_FROM_BRIEF: SHA256 for HI_KI_TOP20_RAW_20260921.tar.gz was taken from the research brief
+  (prior inspection elsewhere). This VM did not re-download that tarball; absence here does not
+  prove absence on other servers or later date packs (2026-09-22/23 bundles).
+
+3) Known schema facts from brief (not re-verified by opening local bytes)
+- HI_KI_1MIN_60D_ALL.csv columns: date,time,code,open,high,low,close,volume,cum_turnover,rank,hiki.
+  No institution/foreign/program/broker/receive-time columns.
+- HI_KI_TOP20_RAW_20260921.tar.gz members: TRADE, BOOK, MANIFEST only.
+  Cumulative aggressive buy/sell in TRADE must NOT be treated as investor-category net buy.
+- FVG_OB report: price/turnover discontinuity audit on 250D minutes; 1988/4760 triggered checks.
+  That is prior data-quality research, not this strategy's PnL. 60D heavily overlaps 250D — do not
+  pool as independent samples.
+
+4) Point-in-time binding rules (to apply when C arrives)
+- available_at = proven first receive/public time; never join values with available_at > signal_time.
+- Do not assume scheduled publish time == arrival.
+- Preserve round id, publish time, receive time, revision; repeated poll of same payload ≠ new update.
+- as-of join latest per symbol same session; emit age and round; no cross-day forward fill; no future
+  interpolation.
+- Missing flow = UNKNOWN (≠ 0 ≠ net sell).
+- Diffs only same session/unit/scope across distinct rounds; resets/revisions → UNKNOWN if unclear.
+- KRX price + consolidated (KRX+NXT) flow = scope mismatch → separate cohorts.
+
+5) Fee evidence on this VM
+- No verified project fee/tax/slippage ledger found in connected repo.
+- Sensitivity frictions in SPEC remain ASSUMPTION labels only.
+
+6) Conclusion for this run
+DATA_STATUS=BLOCKED_MISSING_POINT_IN_TIME_FLOW
+Also missing price 1m panel on this VM → PRICE_ONLY_PILOT not executed (would still not answer flow question).

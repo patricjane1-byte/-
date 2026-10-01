@@ -1,0 +1,8 @@
+gap_id,needed_for,description,blocking,workaround_forbidden,collection_candidate
+G1,C,Point-in-time institutional & foreign provisional aggregates with event_at/available_at/received_at/update_id/revision/buy_qty/sell_qty/net_qty/unit/raw,YES,Using daily settled investor flow as intraday; treating TRADE aggressive volume as investor net,logger_candidate/pit_flow_logger_design.md + KIS investor_trend_estimate example
+G2,D,Per-symbol program trading time series with receive times,YES_for_aux_program,Merging into F/I score,same logger design separate stream
+G3,E,Broker-window / foreign desk time series with receive times,YES_for_aux_window,Calling it foreign-account confirmation,same logger design separate stream
+G4,B,KRX observed 1m (or TRADE/BOOK with event+receive times) for watchlist dates,YES_for_any_P,Filling gaps by interpolation or signal-close fills,reuse existing RAW read-only if/when mounted; do not alter collectors
+G5,A,Preselected watchlist with creation timestamp and as-of date,YES_for_universe,Building universe from future winners,export from HI-KI pipeline without editing formula
+G6,fees,Verified fee/tax/slippage schedule for this project,NO_for_block_but_needed_for_live_cost_claim,Labeling assumptions as actual current costs,document from broker schedule when available
+G7,agents,AGENTS.md / local project ops guide on research host,NO,Guessing production paths,read on PC host when worker connected

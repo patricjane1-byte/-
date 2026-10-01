@@ -1,0 +1,2 @@
+source,code,venue,event_at,available_at,received_at,update_id,revision,buy_qty,sell_qty,net_qty,unit,raw_response_redacted,status
+investor_trend_estimate,EXAMPLE,KRX,,,,,,,,,shares,,SCHEMA_ONLY
